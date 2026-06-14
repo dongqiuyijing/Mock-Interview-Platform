@@ -207,6 +207,124 @@ export async function getFeedback(
   return data as FeedbackReport | null;
 }
 
+// ---- Real per-user dashboard / history / skills data ----
+
+export interface UserSessionRecord {
+  sessionId: string;
+  date: string;
+  mode: string;
+  jobTitle: string;
+  jobDirection: string;
+  interviewType: string;
+  grade: string;
+  score: number; // 0-100, averaged from ability scores
+  strengths: string[];
+  weaknesses: string[];
+  abilityScores: { name: string; score: number }[];
+}
+
+export interface AbilityStat {
+  name: string;
+  current: number;
+  delta: number;
+}
+
+export interface UserStats {
+  sessions: UserSessionRecord[];
+  readiness: number | null;
+  abilities: AbilityStat[];
+  lastScore: number | null;
+  improvement: number | null;
+}
+
+const avg = (nums: number[]) =>
+  nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0;
+
+// Fetch all completed interview sessions for the current user with their
+// task + feedback data, newest first.
+export async function getUserSessions(): Promise<UserSessionRecord[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from("interview_sessions")
+    .select(
+      "id, mode, started_at, ended_at, status, " +
+        "interview_tasks(job_title, job_direction, interview_type), " +
+        "feedback_reports(summary, ability_scores, strengths, weaknesses)",
+    )
+    .eq("user_id", user.id)
+    .eq("status", "completed")
+    .order("started_at", { ascending: false });
+  if (error) throw error;
+
+  const rows = (data ?? [])
+    .map((s: Record<string, unknown>): UserSessionRecord | null => {
+      const task = (Array.isArray(s.interview_tasks)
+        ? s.interview_tasks[0]
+        : s.interview_tasks) as Record<string, unknown> | null;
+      const fbRaw = Array.isArray(s.feedback_reports)
+        ? s.feedback_reports[0]
+        : s.feedback_reports;
+      const fb = fbRaw as Record<string, unknown> | null;
+      if (!fb) return null; // no report yet — skip
+
+      const ability = (fb.ability_scores as { name: string; score: number }[]) ?? [];
+      const summary = (fb.summary as { grade?: string }) ?? {};
+      return {
+        sessionId: s.id as string,
+        date: (s.ended_at as string) ?? (s.started_at as string),
+        mode: (s.mode as string) ?? "text",
+        jobTitle: (task?.job_title as string) ?? "—",
+        jobDirection: (task?.job_direction as string) ?? "",
+        interviewType: (task?.interview_type as string) ?? "",
+        grade: summary.grade ?? "—",
+        score: avg(ability.map((a) => a.score)),
+        strengths: (fb.strengths as string[]) ?? [],
+        weaknesses: (fb.weaknesses as string[]) ?? [],
+        abilityScores: ability,
+      };
+    })
+    .filter((r): r is UserSessionRecord => r !== null);
+
+  return rows;
+}
+
+// Aggregate per-user stats for the dashboard and skills pages.
+export async function getUserStats(): Promise<UserStats> {
+  const sessions = await getUserSessions();
+  if (sessions.length === 0) {
+    return { sessions, readiness: null, abilities: [], lastScore: null, improvement: null };
+  }
+
+  // Aggregate abilities by name: current = most recent value, delta = most
+  // recent minus the previous occurrence.
+  const byName = new Map<string, number[]>(); // newest-first values
+  for (const s of sessions) {
+    for (const a of s.abilityScores) {
+      const arr = byName.get(a.name) ?? [];
+      arr.push(a.score);
+      byName.set(a.name, arr);
+    }
+  }
+  const abilities: AbilityStat[] = [...byName.entries()].map(([name, vals]) => ({
+    name,
+    current: vals[0],
+    delta: vals.length > 1 ? vals[0] - vals[1] : 0,
+  }));
+
+  const readiness = abilities.length
+    ? avg(abilities.map((a) => a.current))
+    : avg(sessions.map((s) => s.score));
+  const lastScore = sessions[0].score;
+  const improvement =
+    sessions.length > 1 ? sessions[0].score - sessions[1].score : null;
+
+  return { sessions, readiness, abilities, lastScore, improvement };
+}
+
 // Generic SSE consumer for the edge function. Returns the payload of the
 // terminal "done" event.
 type SseEvent = {

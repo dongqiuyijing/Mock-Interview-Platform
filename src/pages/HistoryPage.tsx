@@ -1,31 +1,38 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { History as HistoryIcon, ArrowRight, CheckCircle2, AlertTriangle, PlusCircle } from "lucide-react";
+import {
+  ArrowRight, CheckCircle2, AlertTriangle, PlusCircle, Loader2,
+  Video, MessageSquareText,
+} from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { store } from "@/lib/workspaceStore";
+import { getUserSessions, UserSessionRecord } from "@/lib/api";
 import { dirKey, typeKey, INTERVIEW_TYPES, InterviewType } from "@/lib/interview";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const HistoryPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const sessions = useMemo(() => store.getSessions(), []);
+  const [sessions, setSessions] = useState<UserSessionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<InterviewType | "all">("all");
 
-  const filtered = filter === "all" ? sessions : sessions.filter((s) => s.interviewType === filter);
+  useEffect(() => {
+    getUserSessions()
+      .then(setSessions)
+      .catch((e) => toast.error((e as Error).message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const openReview = (id: string) => {
-    // If this session is the active feedback, go there; otherwise route to feedback view.
-    const fb = store.getFeedback();
-    if (fb) navigate("/feedback");
-    else navigate("/feedback");
-    void id;
-  };
+  const filtered = useMemo(
+    () => (filter === "all" ? sessions : sessions.filter((s) => s.interviewType === filter)),
+    [sessions, filter],
+  );
 
   return (
     <AppLayout activePath="/history">
@@ -48,33 +55,51 @@ const HistoryPage = () => {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="text-sm text-muted-foreground">{t("history.empty")}</p>
+      {loading ? (
+        <div className="flex min-h-[30vh] items-center justify-center text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />{t("history.loading")}
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card className="flex flex-col items-center gap-4 p-14 text-center">
+          <p className="text-sm text-muted-foreground">
+            {sessions.length === 0 ? t("history.emptyNew") : t("history.empty")}
+          </p>
+          {sessions.length === 0 && (
+            <Button onClick={() => navigate("/new")} className="rounded-full">
+              <PlusCircle className="mr-2 h-4 w-4" />{t("dash.empty.cta")}
+            </Button>
+          )}
         </Card>
       ) : (
         <div className="space-y-3">
           {filtered.map((s) => (
-            <Card key={s.id} className="p-5">
+            <Card key={s.sessionId} className="p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-3">
                     <span className="display text-2xl tabular-nums">{s.score}</span>
                     <span className="rounded-full border border-border px-2.5 py-1 text-xs font-semibold">{s.grade}</span>
+                    <span className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">
+                      {s.mode === "video" ? <Video className="h-3 w-3" /> : <MessageSquareText className="h-3 w-3" />}
+                      {s.mode === "video" ? t("feedback.mode.video") : t("feedback.mode.text")}
+                    </span>
                   </div>
                   <div className="mt-2 text-base font-semibold">{s.jobTitle}</div>
                   <div className="text-xs text-muted-foreground">
                     {t(dirKey(s.jobDirection))} · {t(typeKey(s.interviewType))} · {formatDate(s.date, i18n.language)}
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="rounded-full" onClick={() => openReview(s.id)}>
+                <Button variant="outline" size="sm" className="rounded-full"
+                  onClick={() => navigate(`/feedback?sessionId=${s.sessionId}`)}>
                   {t("history.review")}<ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </Button>
               </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <TagRow icon={CheckCircle2} tone="success" items={s.strengths.map((k) => t(k))} />
-                <TagRow icon={AlertTriangle} tone="muted" items={s.weaknesses.map((k) => t(k))} />
-              </div>
+              {(s.strengths.length > 0 || s.weaknesses.length > 0) && (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <TagRow icon={CheckCircle2} tone="success" items={s.strengths.slice(0, 2)} />
+                  <TagRow icon={AlertTriangle} tone="muted" items={s.weaknesses.slice(0, 2)} />
+                </div>
+              )}
             </Card>
           ))}
         </div>
