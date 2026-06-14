@@ -25,6 +25,7 @@ type Phase =
   | "waiting"     // waiting for user to start answering
   | "recording"   // user answering
   | "thinking"    // AI processing follow-up
+  | "error"       // request failed — offer retry
   | "done";
 
 type CamState = "idle" | "granted" | "denied" | "simulated";
@@ -142,8 +143,10 @@ const VideoInterview = () => {
   };
 
   // ---- ask next question ----
+  const lastAnswerRef = useRef<string | null>(null);
   const askNext = useCallback(async (answer: string | null) => {
     if (!sessionId) return;
+    lastAnswerRef.current = answer;
     setPhase("thinking");
     setLiveQuestion("");
     try {
@@ -170,9 +173,13 @@ const VideoInterview = () => {
     } catch (err) {
       toast.error((err as Error).message);
       setLiveQuestion("");
-      setPhase("waiting");
+      setPhase("error");
     }
   }, [sessionId, i18n.language]);
+
+  const retry = useCallback(() => {
+    askNext(lastAnswerRef.current);
+  }, [askNext]);
 
   // ---- load task + first question ----
   useEffect(() => {
@@ -220,6 +227,7 @@ const VideoInterview = () => {
     waiting: t("video.phase.waiting"),
     recording: t("video.phase.recording"),
     thinking: t("video.phase.thinking"),
+    error: t("video.phase.error"),
     done: t("video.phase.done"),
   };
 
@@ -290,6 +298,19 @@ const VideoInterview = () => {
                 <div className="flex items-center gap-2 text-sm text-neutral-300">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   {t("video.connecting")}
+                </div>
+              </div>
+            )}
+
+            {/* Error overlay — connection dropped, allow retry */}
+            {phase === "error" && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+                <div className="flex max-w-xs flex-col items-center gap-3 text-center">
+                  <RefreshCw className="h-7 w-7 text-neutral-300" />
+                  <p className="text-sm text-neutral-300">{t("video.error.dropped")}</p>
+                  <Button onClick={retry} className="rounded-full bg-white text-neutral-900 hover:bg-neutral-200">
+                    <RefreshCw className="mr-2 h-4 w-4" />{t("video.error.retry")}
+                  </Button>
                 </div>
               </div>
             )}
@@ -444,6 +465,11 @@ const VideoInterview = () => {
                 <div className="flex items-center gap-2 text-sm text-neutral-400">
                   <Loader2 className="h-4 w-4 animate-spin" />{t("video.phase.thinking")}
                 </div>
+              )}
+              {phase === "error" && (
+                <Button onClick={retry} className="w-full rounded-full bg-white text-neutral-900 hover:bg-neutral-200">
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />{t("video.error.retry")}
+                </Button>
               )}
               {phase === "asking" && (
                 <div className="flex items-center gap-2 text-sm text-neutral-400">
