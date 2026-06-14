@@ -24,9 +24,11 @@ interface AppLayoutProps {
   step?: StepId;
   /** Highlight a nav item even if the route isn't an exact match. */
   activePath?: string;
+  /** Use a wider content container (e.g. report pages with side-by-side grids). */
+  wide?: boolean;
 }
 
-export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
+export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) => {
   const { t } = useTranslation();
   const location = useLocation();
   const { user, signOut } = useAuth();
@@ -36,7 +38,7 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
     item.exact ? current === item.to : current.startsWith(item.to);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden bg-secondary/40">
+    <div className="flex min-h-screen overflow-x-clip bg-secondary/40">
       {/* Sidebar */}
       <aside className="sticky top-0 z-40 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background md:flex">
         <div className="flex h-16 items-center border-b border-border px-6">
@@ -105,7 +107,7 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
           ))}
         </div>
 
-        <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-10">
+        <main className={cn("mx-auto px-5 py-8 sm:px-8 sm:py-10", wide ? "max-w-[1400px]" : "max-w-6xl")}>
           {step && (
             <div className="mb-8 md:hidden">
               <Stepper current={step} />

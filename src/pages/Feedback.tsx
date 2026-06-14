@@ -94,8 +94,8 @@ const Feedback = () => {
   const restart = () => navigate("/new");
 
   return (
-    <AppLayout step="feedback" activePath="/new">
-      <div className="grid gap-12 lg:grid-cols-[minmax(280px,360px)_1fr] lg:gap-16">
+    <AppLayout step="feedback" activePath="/new" wide>
+      <div className="grid gap-12 lg:grid-cols-[minmax(280px,340px)_1fr] lg:gap-16">
         {/* Left header + grade */}
         <div className="lg:sticky lg:top-24 lg:self-start">
           <StepHeader index={4} title={t("feedback.title")} description={jobTitle} />
