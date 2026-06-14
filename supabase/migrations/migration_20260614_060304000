@@ -1,0 +1,6 @@
+-- Clean up E2E test data (keep schema intact)
+delete from feedback_reports;
+delete from interview_messages;
+delete from interview_sessions;
+delete from analysis_reports;
+delete from interview_tasks;
