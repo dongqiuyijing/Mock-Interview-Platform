@@ -9,6 +9,7 @@ import Feedback from "./pages/Feedback";
 import HistoryPage from "./pages/HistoryPage";
 import Skills from "./pages/Skills";
 import TrainingPlan from "./pages/TrainingPlan";
+import ResumesPage from "./pages/Resumes";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const routers = [
@@ -95,6 +96,15 @@ export const routers = [
     element: (
       <ProtectedRoute>
         <TrainingPlan />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/resumes",
+    name: "resumes",
+    element: (
+      <ProtectedRoute>
+        <ResumesPage />
       </ProtectedRoute>
     ),
   },
