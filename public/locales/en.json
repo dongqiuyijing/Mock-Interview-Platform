@@ -13,6 +13,7 @@
   "feedback.mode.video": "Video call interview",
   "video.interviewerName": "AI Interviewer",
   "video.you": "You",
+  "video.swap": "Switch main view",
   "video.connecting": "Connecting to your AI interviewer...",
   "video.phase.connecting": "Connecting",
   "video.phase.asking": "Interviewer speaking",

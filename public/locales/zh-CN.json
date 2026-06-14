@@ -13,6 +13,7 @@
   "feedback.mode.video": "视频通话面试",
   "video.interviewerName": "AI 面试官",
   "video.you": "你",
+  "video.swap": "切换主画面",
   "video.connecting": "正在接通 AI 面试官…",
   "video.phase.connecting": "接通中",
   "video.phase.asking": "面试官提问中",

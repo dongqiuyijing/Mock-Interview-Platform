@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Mic, MicOff, Video, VideoOff, Captions, CaptionsOff,
   Pause, Play, PhoneOff, Loader2, Target, Layers, Circle,
-  Square, RotateCcw, Send, Sparkles,
+  Square, RotateCcw, Send, Sparkles, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +51,8 @@ const VideoInterview = () => {
   const [competency, setCompetency] = useState<string | null>(null);
   const [answered, setAnswered] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  // Which feed occupies the big stage: the candidate's camera or the AI.
+  const [mainStage, setMainStage] = useState<"self" | "interviewer">("self");
 
   // Controls
   const [micOn, setMicOn] = useState(true);
@@ -80,6 +82,19 @@ const VideoInterview = () => {
   const fmtTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
+  // Keep only the sentence currently being "spoken" so captions advance
+  // line-by-line instead of dumping the whole paragraph at once.
+  const lastSentence = (text: string) => {
+    const parts = text
+      .split(/(?<=[。！？!?.])\s*/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return parts[parts.length - 1] ?? text;
+  };
+
+  const swapStage = () =>
+    setMainStage((s) => (s === "self" ? "interviewer" : "self"));
+
   // ---- camera ----
   const requestCamera = useCallback(async () => {
     try {
@@ -104,6 +119,14 @@ const VideoInterview = () => {
   useEffect(() => {
     streamRef.current?.getAudioTracks().forEach((tr) => (tr.enabled = micOn));
   }, [micOn]);
+
+  // Re-attach the camera stream to the main <video> whenever it becomes the
+  // big stage (the element remounts on swap and loses its srcObject).
+  useEffect(() => {
+    if (mainStage === "self" && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [mainStage, camState]);
 
   const pushCaption = (speaker: Caption["speaker"], text: string) => {
     setCaptions((prev) => [...prev.slice(-6), { id: `${speaker}-${Date.now()}`, speaker, text }]);
@@ -218,13 +241,38 @@ const VideoInterview = () => {
         {/* Video column */}
         <div className="relative flex flex-1 flex-col">
           <div className="relative flex-1 overflow-hidden rounded-3xl bg-neutral-900">
-            <InterviewerAvatar state={avatarState} className="absolute inset-0 h-full w-full rounded-3xl" />
-
-            {/* Interviewer name badge */}
-            <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-xs backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-              {t("video.interviewerName")}
-            </div>
+            {/* ---- Big stage ---- */}
+            {mainStage === "self" ? (
+              <>
+                <video ref={videoRef} autoPlay playsInline muted
+                  className={cn("absolute inset-0 h-full w-full object-cover",
+                    (!camOn || camState !== "granted") && "hidden")} />
+                {(!camOn || camState !== "granted") && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-neutral-500">
+                    <VideoOff className="h-10 w-10" />
+                    <span className="text-xs uppercase tracking-wider">
+                      {camState === "denied" ? t("video.cam.denied")
+                        : camState === "simulated" ? t("video.cam.simulated")
+                          : t("video.cam.off")}
+                    </span>
+                  </div>
+                )}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/10" />
+                {/* Self name badge */}
+                <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-xs backdrop-blur">
+                  {micOn ? <Mic className="h-3.5 w-3.5" /> : <MicOff className="h-3.5 w-3.5 text-red-400" />}
+                  {t("video.you")}
+                </div>
+              </>
+            ) : (
+              <>
+                <InterviewerAvatar state={avatarState} className="absolute inset-0 h-full w-full rounded-3xl" />
+                <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/50 px-3 py-1.5 text-xs backdrop-blur">
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                  {t("video.interviewerName")}
+                </div>
+              </>
+            )}
 
             {/* Connecting overlay */}
             {phase === "connecting" && (
@@ -236,27 +284,40 @@ const VideoInterview = () => {
               </div>
             )}
 
-            {/* Self view (PiP) */}
-            <div className="absolute bottom-4 right-4 aspect-video w-40 overflow-hidden rounded-xl border border-white/20 bg-neutral-800 shadow-lg sm:w-52">
-              <video ref={videoRef} autoPlay playsInline muted
-                className={cn("h-full w-full object-cover", (!camOn || camState !== "granted") && "hidden")} />
-              {(!camOn || camState !== "granted") && (
-                <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-neutral-500">
-                  <VideoOff className="h-5 w-5" />
-                  <span className="text-[10px] uppercase tracking-wider">
-                    {camState === "denied" ? t("video.cam.denied")
-                      : camState === "simulated" ? t("video.cam.simulated")
-                        : t("video.cam.off")}
-                  </span>
-                </div>
+            {/* ---- PiP (the other feed) — click to swap ---- */}
+            <button
+              onClick={swapStage}
+              title={t("video.swap")}
+              className="group absolute right-4 top-4 aspect-video w-40 overflow-hidden rounded-xl border border-white/20 bg-neutral-800 shadow-lg transition-smooth hover:border-white/50 sm:w-52"
+            >
+              {mainStage === "self" ? (
+                <InterviewerAvatar state={avatarState} className="absolute inset-0 h-full w-full rounded-xl" />
+              ) : (
+                <>
+                  <video
+                    autoPlay playsInline muted
+                    ref={(el) => {
+                      if (el && streamRef.current) el.srcObject = streamRef.current;
+                    }}
+                    className={cn("h-full w-full object-cover", (!camOn || camState !== "granted") && "hidden")} />
+                  {(!camOn || camState !== "granted") && (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-neutral-500">
+                      <VideoOff className="h-5 w-5" />
+                    </div>
+                  )}
+                </>
               )}
               <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px]">
-                {micOn ? <Mic className="h-2.5 w-2.5" /> : <MicOff className="h-2.5 w-2.5 text-red-400" />}
-                {t("video.you")}
+                {mainStage === "self"
+                  ? <><Sparkles className="h-2.5 w-2.5 text-emerald-400" />{t("video.interviewerName")}</>
+                  : <>{micOn ? <Mic className="h-2.5 w-2.5" /> : <MicOff className="h-2.5 w-2.5 text-red-400" />}{t("video.you")}</>}
               </div>
-            </div>
+              <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 opacity-0 transition-smooth group-hover:opacity-100">
+                <RefreshCw className="h-3 w-3" />
+              </span>
+            </button>
 
-            {/* Live captions */}
+            {/* Live captions — one sentence at a time */}
             {captionsOn && (liveQuestion || captions.length > 0) && (
               <div className="absolute inset-x-0 bottom-0 px-6 pb-6 pt-16 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="mx-auto max-w-3xl space-y-1.5 text-center">
@@ -265,7 +326,7 @@ const VideoInterview = () => {
                       <span className="mr-2 text-xs font-semibold uppercase tracking-wider text-emerald-400">
                         {t("video.interviewerName")}
                       </span>
-                      {liveQuestion}
+                      {lastSentence(liveQuestion)}
                       <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse-soft bg-white align-middle" />
                     </p>
                   ) : (
@@ -275,7 +336,7 @@ const VideoInterview = () => {
                           c.speaker === "interviewer" ? "text-emerald-400" : "text-sky-400")}>
                           {c.speaker === "interviewer" ? t("video.interviewerName") : t("video.you")}
                         </span>
-                        {c.text}
+                        {lastSentence(c.text)}
                       </p>
                     ))
                   )}
