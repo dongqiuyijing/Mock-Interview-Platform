@@ -36,9 +36,9 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
     item.exact ? current === item.to : current.startsWith(item.to);
 
   return (
-    <div className="flex min-h-screen bg-secondary/40">
+    <div className="min-h-screen overflow-x-hidden bg-secondary/40">
       {/* Sidebar */}
-      <aside className="sticky top-0 z-40 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-background md:flex">
         <div className="flex h-16 items-center border-b border-border px-6">
           <Link to="/" className="flex items-baseline gap-2">
             <span className="display text-lg">{t("app.name")}</span>
@@ -72,27 +72,27 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
       </aside>
 
       {/* Main column */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="min-w-0 md:pl-60">
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/85 px-5 backdrop-blur sm:px-8">
           {/* Mobile brand + nav */}
-          <div className="flex items-center gap-4 lg:hidden">
+          <div className="flex items-center gap-4 md:hidden">
             <span className="display text-base">{t("app.name")}</span>
           </div>
-          <div className="hidden lg:block">
+          <div className="hidden md:block">
             {step ? <Stepper current={step} /> : <span className="label-eyebrow">{t("app.tagline")}</span>}
           </div>
           <div className="flex items-center">
             <LanguageSwitcher className="h-9 w-[120px] rounded-full border-border text-xs" />
             <Button variant="ghost" size="icon" onClick={signOut}
-              className="ml-2 h-9 w-9 rounded-full text-muted-foreground lg:hidden">
+              className="ml-2 h-9 w-9 rounded-full text-muted-foreground md:hidden">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </header>
 
         {/* Mobile nav row */}
-        <div className="flex gap-1 overflow-x-auto border-b border-border bg-background px-4 py-2 lg:hidden">
+        <div className="flex gap-1 overflow-x-auto border-b border-border bg-background px-4 py-2 md:hidden">
           {NAV.map((item) => (
             <Link key={item.to} to={item.to}
               className={cn(
@@ -107,7 +107,7 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
 
         <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-10">
           {step && (
-            <div className="mb-8 lg:hidden">
+            <div className="mb-8 md:hidden">
               <Stepper current={step} />
             </div>
           )}
