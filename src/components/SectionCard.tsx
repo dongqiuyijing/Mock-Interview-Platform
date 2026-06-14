@@ -6,24 +6,17 @@ interface SectionCardProps {
   icon: LucideIcon;
   title: string;
   children: ReactNode;
+  /** kept for API compatibility; visual style is uniformly monochrome */
   accent?: "primary" | "accent" | "success" | "warning" | "destructive";
 }
 
-const accentMap = {
-  primary: "bg-primary/10 text-primary",
-  accent: "bg-accent/10 text-accent",
-  success: "bg-success/10 text-success",
-  warning: "bg-warning/10 text-warning",
-  destructive: "bg-destructive/10 text-destructive",
-};
-
-export const SectionCard = ({ icon: Icon, title, children, accent = "primary" }: SectionCardProps) => (
-  <Card className="p-6">
-    <div className="mb-4 flex items-center gap-3">
-      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${accentMap[accent]}`}>
+export const SectionCard = ({ icon: Icon, title, children }: SectionCardProps) => (
+  <Card className="p-7">
+    <div className="mb-6 flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border">
         <Icon className="h-4 w-4" />
       </div>
-      <h3 className="font-semibold">{title}</h3>
+      <h3 className="text-base font-semibold tracking-tight">{title}</h3>
     </div>
     {children}
   </Card>
@@ -36,7 +29,7 @@ interface BulletListProps {
 }
 
 const markerColor = {
-  dot: "bg-muted-foreground",
+  dot: "bg-foreground/40",
   check: "bg-success",
   warn: "bg-warning",
   risk: "bg-destructive",
@@ -47,7 +40,7 @@ export const BulletList = ({ items, marker = "dot", empty }: BulletListProps) =>
     return <p className="text-sm text-muted-foreground">{empty ?? "—"}</p>;
   }
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-3">
       {items.map((item, i) => (
         <li key={i} className="flex gap-3 text-sm leading-relaxed">
           <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${markerColor[marker]}`} />

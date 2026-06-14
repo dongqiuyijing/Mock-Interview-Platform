@@ -6,6 +6,7 @@
   "step.analysis": "分析报告",
   "step.interview": "模拟面试",
   "step.feedback": "反馈报告",
+  "step.indexLabel": "第 {{index}} / {{total}} 步",
 
   "dir.aiPm": "AI 产品经理",
   "dir.aiEngineer": "AI 应用工程师",
@@ -23,7 +24,10 @@
 
   "new.title": "创建面试任务",
   "new.subtitle": "粘贴目标岗位 JD 和你的简历，生成定制化面试方案。",
-  "new.useSample": "使用示例",
+  "new.lead": "RoleReady 把岗位描述和你的简历转化为一场贴合 AI 行业的定制模拟面试。在下方选择岗位与配置，然后生成方案。",
+  "new.inputs.title": "输入",
+  "new.config.title": "配置",
+  "new.useSample": "填入示例数据",
   "new.jobTitle": "岗位名称（可选）",
   "new.jobTitle.ph": "例如：高级 AI 产品经理",
   "new.jd": "岗位描述",

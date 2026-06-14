@@ -6,6 +6,7 @@
   "step.analysis": "Analysis report",
   "step.interview": "Mock interview",
   "step.feedback": "Feedback report",
+  "step.indexLabel": "Step {{index}} / {{total}}",
 
   "dir.aiPm": "AI Product Manager",
   "dir.aiEngineer": "AI Application Engineer",
@@ -23,7 +24,10 @@
 
   "new.title": "Create interview task",
   "new.subtitle": "Paste the target JD and your resume to generate a tailored interview plan.",
-  "new.useSample": "Use sample",
+  "new.lead": "RoleReady turns a job description and your resume into a tailored AI-industry mock interview. Pick your role and configuration below, then generate the plan.",
+  "new.inputs.title": "Inputs",
+  "new.config.title": "Configuration",
+  "new.useSample": "Fill with sample data",
   "new.jobTitle": "Job title (optional)",
   "new.jobTitle.ph": "e.g. Senior AI Product Manager",
   "new.jd": "Job description",
