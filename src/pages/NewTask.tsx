@@ -3,10 +3,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   FileText, FileUser, ArrowRight, Sparkles, Target, ListChecks, CircleCheck,
-  MessageSquareText, Video, Wand2, Loader2,
+  MessageSquareText, Video, Wand2, Loader2, FolderOpen,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ImageOcrButton } from "@/components/ImageOcrButton";
+import { ResumePickerDialog } from "@/components/ResumePickerDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ const NewTask = () => {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [submitting, setSubmitting] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
+  const [resumePickerOpen, setResumePickerOpen] = useState(false);
   // Remember the JD we last auto-generated config from, so we only re-run when
   // the job description actually changes.
   const lastAutoJd = useRef<string>("");
@@ -109,7 +111,11 @@ const NewTask = () => {
 
   return (
     <AppLayout step="create" activePath="/new">
-      {/* Page heading */}
+      <ResumePickerDialog
+        open={resumePickerOpen}
+        onOpenChange={setResumePickerOpen}
+        onSelect={(r) => { setResumeText(r.content); }}
+      />
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
         <div className="flex items-start gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-foreground/80 text-sm font-semibold">
@@ -150,7 +156,13 @@ const NewTask = () => {
               </Field>
 
               <Field label={t("new.resume")} icon={FileUser}
-                action={<ImageOcrButton onText={(txt) => setResumeText((p) => (p ? `${p}\n${txt}` : txt))} />}>
+                action={
+                  <Button type="button" variant="outline" size="sm"
+                    onClick={() => setResumePickerOpen(true)}
+                    className="h-8 rounded-full px-3 text-xs">
+                    <FolderOpen className="mr-1.5 h-3.5 w-3.5" />{t("new.resume.configure")}
+                  </Button>
+                }>
                 <Textarea value={resumeText} onChange={(e) => setResumeText(e.target.value)}
                   placeholder={t("new.resume.ph")}
                   className="min-h-[150px] resize-y rounded-xl border-border" />

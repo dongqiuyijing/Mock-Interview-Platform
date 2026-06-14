@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Stepper, StepId } from "@/components/Stepper";
+import { MyResumesSection } from "@/components/MyResumesSection";
+import { OnboardingResumeDialog } from "@/components/OnboardingResumeDialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -33,12 +35,14 @@ export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) 
   const location = useLocation();
   const { user, signOut } = useAuth();
   const current = activePath ?? location.pathname;
+  const [resumeRefresh, setResumeRefresh] = useState(0);
 
   const isActive = (item: (typeof NAV)[number]) =>
     item.exact ? current === item.to : current.startsWith(item.to);
 
   return (
     <div className="flex min-h-screen overflow-x-clip bg-secondary/40">
+      <OnboardingResumeDialog onDone={() => setResumeRefresh((n) => n + 1)} />
       {/* Sidebar */}
       <aside className="sticky top-0 z-40 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background md:flex">
         <div className="flex h-16 items-center border-b border-border px-6">
@@ -46,7 +50,7 @@ export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) 
             <span className="display text-lg">{t("app.name")}</span>
           </Link>
         </div>
-        <nav className="flex-1 space-y-1 p-4">
+        <nav className="space-y-1 p-4">
           {NAV.map((item) => (
             <Link key={item.to} to={item.to}
               className={cn(
@@ -60,6 +64,9 @@ export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) 
             </Link>
           ))}
         </nav>
+        <div className="flex-1 overflow-y-auto">
+          <MyResumesSection refreshKey={resumeRefresh} />
+        </div>
         <div className="border-t border-border p-4">
           {user && (
             <div className="mb-3 truncate text-xs text-muted-foreground" title={user.email ?? ""}>

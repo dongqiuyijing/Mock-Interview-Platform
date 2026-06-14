@@ -3350,6 +3350,7 @@ export type Database = {
           email: string | null
           id: string
           name: string | null
+          onboarded: boolean
           plan: string
         }
         Insert: {
@@ -3357,6 +3358,7 @@ export type Database = {
           email?: string | null
           id: string
           name?: string | null
+          onboarded?: boolean
           plan?: string
         }
         Update: {
@@ -3364,7 +3366,35 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string | null
+          onboarded?: boolean
           plan?: string
+        }
+        Relationships: []
+      }
+      resumes: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          image_path: string | null
+          name: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          name: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          image_path?: string | null
+          name?: string
+          user_id?: string
         }
         Relationships: []
       }

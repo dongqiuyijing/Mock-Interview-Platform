@@ -1,0 +1,39 @@
+-- Resumes table
+create table if not exists public.resumes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  content text not null,
+  image_path text,
+  created_at timestamptz not null default now()
+);
+alter table public.resumes enable row level security;
+drop policy if exists "Users manage own resumes" on public.resumes;
+create policy "Users manage own resumes" on public.resumes
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists idx_resumes_user on public.resumes(user_id);
+
+-- Onboarding flag on profiles
+alter table public.profiles add column if not exists onboarded boolean not null default false;
+
+-- Private storage bucket for resume images
+insert into storage.buckets (id, name, public)
+values ('resumes', 'resumes', false)
+on conflict (id) do nothing;
+
+-- Storage policies: users can only access files under their own uid folder
+drop policy if exists "Users read own resume files" on storage.objects;
+create policy "Users read own resume files" on storage.objects
+  for select using (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "Users upload own resume files" on storage.objects;
+create policy "Users upload own resume files" on storage.objects
+  for insert with check (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "Users update own resume files" on storage.objects;
+create policy "Users update own resume files" on storage.objects
+  for update using (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "Users delete own resume files" on storage.objects;
+create policy "Users delete own resume files" on storage.objects
+  for delete using (bucket_id = 'resumes' and auth.uid()::text = (storage.foldername(name))[1]);

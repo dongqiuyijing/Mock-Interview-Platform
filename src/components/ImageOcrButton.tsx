@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ImagePlus, Loader2 } from "lucide-react";
-import Tesseract from "tesseract.js";
 import { Button } from "@/components/ui/button";
+import { recognizeImage } from "@/lib/ocr";
 import { toast } from "sonner";
 
 interface ImageOcrButtonProps {
@@ -30,14 +30,7 @@ export const ImageOcrButton = ({ onText }: ImageOcrButtonProps) => {
     setBusy(true);
     setProgress(0);
     try {
-      const { data } = await Tesseract.recognize(file, "eng+chi_sim", {
-        logger: (m) => {
-          if (m.status === "recognizing text") {
-            setProgress(Math.round(m.progress * 100));
-          }
-        },
-      });
-      const text = data.text.trim();
+      const text = await recognizeImage(file, setProgress);
       if (!text) {
         toast.error(t("ocr.error.empty"));
         return;
