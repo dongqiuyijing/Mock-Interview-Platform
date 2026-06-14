@@ -1,10 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  FileText, FileUser, ArrowRight, Sparkles, Target, ListChecks, CircleCheck,
-  MessageSquareText, Video, Wand2, Loader2, FolderOpen,
-} from "lucide-react";
+import { FileText, FileUser, ArrowRight, Sparkles, Target, ListChecks, CircleCheck, MessageSquareText, Video, Wand2, Loader2, FolderOpen } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ImageOcrButton } from "@/components/ImageOcrButton";
 import { ResumePickerDialog } from "@/components/ResumePickerDialog";
@@ -13,29 +10,24 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import {
-  INTERVIEW_TYPES, DIFFICULTIES, DURATIONS, INTERVIEW_MODES,
-  InterviewType, Difficulty, InterviewMode,
-} from "@/lib/interview";
+import { INTERVIEW_TYPES, DIFFICULTIES, DURATIONS, INTERVIEW_MODES, InterviewType, Difficulty, InterviewMode } from "@/lib/interview";
 import { createTask, analyzeTask, suggestConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
-
 const SAMPLE_JD = `We are hiring an AI Product Manager to own our LLM-powered assistant. You will define the roadmap, design evaluation metrics for answer quality, partner with engineering on RAG and agent workflows, and balance latency, cost and reliability. Experience shipping AI features to production required.`;
 const SAMPLE_RESUME = `Product Manager with 4 years experience. Shipped a customer-support assistant using retrieval-augmented generation, improving deflection by 28%. Built an eval harness with human + automated scoring. Partnered with ML engineers on prompt iteration and cost optimization.`;
-
 const NewTask = () => {
-  const { t, i18n } = useTranslation();
+  const {
+    t,
+    i18n
+  } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
   const [jobTitle, setJobTitle] = useState("");
   const [jdText, setJdText] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [direction, setDirection] = useState("");
   const [interviewType, setInterviewType] = useState<InterviewType>("product");
-  const [mode, setMode] = useState<InterviewMode>(
-    searchParams.get("mode") === "video" ? "video" : "text",
-  );
+  const [mode, setMode] = useState<InterviewMode>(searchParams.get("mode") === "video" ? "video" : "text");
   const [duration, setDuration] = useState(30);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [submitting, setSubmitting] = useState(false);
@@ -44,7 +36,6 @@ const NewTask = () => {
   // Remember the JD we last auto-generated config from, so we only re-run when
   // the job description actually changes.
   const lastAutoJd = useRef<string>("");
-
   const fillSample = () => {
     setJobTitle("Senior AI Product Manager");
     setJdText(SAMPLE_JD);
@@ -63,8 +54,8 @@ const NewTask = () => {
       const cfg = await suggestConfig(jd, resumeText, i18n.language);
       // Only fill fields the user hasn't manually set, so we never overwrite
       // their edits silently.
-      setJobTitle((v) => v || cfg.job_title || v);
-      setDirection((v) => v || cfg.job_direction || v);
+      setJobTitle(v => v || cfg.job_title || v);
+      setDirection(v => v || cfg.job_direction || v);
       if (cfg.interview_type) setInterviewType(cfg.interview_type);
       if (cfg.difficulty) setDifficulty(cfg.difficulty);
       if (cfg.duration) setDuration(cfg.duration);
@@ -75,7 +66,6 @@ const NewTask = () => {
       setAutoFilling(false);
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (jdText.trim().length < 30 || resumeText.trim().length < 30) {
@@ -92,7 +82,7 @@ const NewTask = () => {
         duration,
         jdText,
         resumeText,
-        mode,
+        mode
       });
       await analyzeTask(taskId, i18n.language);
       navigate(`/analysis?taskId=${taskId}`);
@@ -101,28 +91,33 @@ const NewTask = () => {
       setSubmitting(false);
     }
   };
-
-  const previewItems = [
-    { icon: Target, key: "role" },
-    { icon: FileUser, key: "resume" },
-    { icon: ListChecks, key: "plan" },
-    { icon: Sparkles, key: "feedback" },
-  ];
-
-  return (
-    <AppLayout step="create" activePath="/new">
-      <ResumePickerDialog
-        open={resumePickerOpen}
-        onOpenChange={setResumePickerOpen}
-        onSelect={(r) => { setResumeText(r.content); }}
-      />
+  const previewItems = [{
+    icon: Target,
+    key: "role"
+  }, {
+    icon: FileUser,
+    key: "resume"
+  }, {
+    icon: ListChecks,
+    key: "plan"
+  }, {
+    icon: Sparkles,
+    key: "feedback"
+  }];
+  return <AppLayout step="create" activePath="/new">
+      <ResumePickerDialog open={resumePickerOpen} onOpenChange={setResumePickerOpen} onSelect={r => {
+      setResumeText(r.content);
+    }} />
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
         <div className="flex items-start gap-4">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-foreground/80 text-sm font-semibold">
             01
           </span>
           <div>
-            <div className="label-eyebrow mb-2">{t("step.indexLabel", { index: 1, total: 4 })}</div>
+            <div className="label-eyebrow mb-2">{t("step.indexLabel", {
+              index: 1,
+              total: 4
+            })}</div>
             <h1 className="display text-3xl sm:text-4xl">{t("new.title")}</h1>
             <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
               {t("new.subtitle")}
@@ -142,43 +137,27 @@ const NewTask = () => {
             <div className="label-eyebrow mb-7">{t("new.inputs.title")}</div>
             <div className="space-y-7">
               <Field label={t("new.jobTitle")}>
-                <Input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder={t("new.jobTitle.ph")}
-                  className="h-11 rounded-xl border-border" />
+                <Input value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder={t("new.jobTitle.ph")} className="h-11 rounded-xl border-border" />
               </Field>
 
-              <Field label={t("new.jd")} icon={FileText}
-                action={<ImageOcrButton onText={(txt) => { setJdText((p) => { const next = p ? `${p}\n${txt}` : txt; setTimeout(() => autoGenerateConfig(next), 0); return next; }); }} />}>
-                <Textarea value={jdText} onChange={(e) => setJdText(e.target.value)}
-                  onBlur={autoGenerateConfig}
-                  placeholder={t("new.jd.ph")}
-                  className="min-h-[150px] resize-y rounded-xl border-border" />
+              <Field label={t("new.jd")} icon={FileText} action={<ImageOcrButton onText={txt => {
+              setJdText(p => {
+                const next = p ? `${p}\n${txt}` : txt;
+                setTimeout(() => autoGenerateConfig(next), 0);
+                return next;
+              });
+            }} />}>
+                <Textarea value={jdText} onChange={e => setJdText(e.target.value)} onBlur={autoGenerateConfig} placeholder={t("new.jd.ph")} className="min-h-[150px] resize-y rounded-xl border-border" />
               </Field>
 
-              <Field label={t("new.resume")} icon={FileUser}
-                action={
-                  <Button type="button" variant="outline" size="sm"
-                    onClick={() => setResumePickerOpen(true)}
-                    className="h-8 rounded-full px-3 text-xs">
+              <Field label={t("new.resume")} icon={FileUser} action={<Button type="button" variant="outline" size="sm" onClick={() => setResumePickerOpen(true)} className="h-8 rounded-full px-3 text-xs">
                     <FolderOpen className="mr-1.5 h-3.5 w-3.5" />{t("new.resume.configure")}
-                  </Button>
-                }>
-                <Textarea value={resumeText} onChange={(e) => setResumeText(e.target.value)}
-                  placeholder={t("new.resume.ph")}
-                  className="min-h-[150px] resize-y rounded-xl border-border" />
+                  </Button>}>
+                
               </Field>
             </div>
 
-            <div className="mt-7 flex items-center gap-2.5 rounded-2xl border border-dashed border-border bg-secondary/40 p-4">
-              {autoFilling ? (
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-              ) : (
-                <Wand2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {autoFilling ? t("new.autofill.working") : t("new.autofill.auto")}
-              </p>
-            </div>
+            
           </Card>
 
           <Card className="p-8">
@@ -186,28 +165,24 @@ const NewTask = () => {
 
             <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
               <RowField label={t("new.direction")}>
-                <Input value={direction} onChange={(e) => setDirection(e.target.value)}
-                  placeholder={t("new.direction.ph")}
-                  className="h-11 rounded-xl border-border" />
+                <Input value={direction} onChange={e => setDirection(e.target.value)} placeholder={t("new.direction.ph")} className="h-11 rounded-xl border-border" />
               </RowField>
 
               <RowField label={t("new.duration")}>
                 <div className="flex gap-2">
-                  {DURATIONS.map((d) => (
-                    <SegButton key={d} active={duration === d} onClick={() => setDuration(d)}>
-                      {t("new.duration.min", { min: d })}
-                    </SegButton>
-                  ))}
+                  {DURATIONS.map(d => <SegButton key={d} active={duration === d} onClick={() => setDuration(d)}>
+                      {t("new.duration.min", {
+                    min: d
+                  })}
+                    </SegButton>)}
                 </div>
               </RowField>
 
               <RowField label={t("new.difficulty")}>
                 <div className="flex gap-2">
-                  {DIFFICULTIES.map((d) => (
-                    <SegButton key={d.value} active={difficulty === d.value} onClick={() => setDifficulty(d.value)}>
+                  {DIFFICULTIES.map(d => <SegButton key={d.value} active={difficulty === d.value} onClick={() => setDifficulty(d.value)}>
                       {t(d.labelKey)}
-                    </SegButton>
-                  ))}
+                    </SegButton>)}
                 </div>
               </RowField>
             </div>
@@ -215,17 +190,9 @@ const NewTask = () => {
             <div className="mt-8">
               <div className="label-eyebrow mb-3">{t("new.type")}</div>
               <div className="flex flex-wrap gap-1 rounded-full border border-border p-1.5">
-                {INTERVIEW_TYPES.map((it) => (
-                  <button key={it.value} type="button" onClick={() => setInterviewType(it.value)}
-                    className={cn(
-                      "flex-1 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium uppercase tracking-wider transition-smooth",
-                      interviewType === it.value
-                        ? "bg-foreground text-background"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}>
+                {INTERVIEW_TYPES.map(it => <button key={it.value} type="button" onClick={() => setInterviewType(it.value)} className={cn("flex-1 whitespace-nowrap rounded-full px-3 py-2 text-xs font-medium uppercase tracking-wider transition-smooth", interviewType === it.value ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
                     {t(it.labelKey)}
-                  </button>
-                ))}
+                  </button>)}
               </div>
             </div>
 
@@ -233,34 +200,24 @@ const NewTask = () => {
             <div className="mt-8">
               <div className="label-eyebrow mb-3">{t("new.mode")}</div>
               <div className="grid gap-3 sm:grid-cols-2">
-                {INTERVIEW_MODES.map((m) => {
-                  const Icon = m.value === "video" ? Video : MessageSquareText;
-                  const active = mode === m.value;
-                  return (
-                    <button key={m.value} type="button" onClick={() => setMode(m.value)}
-                      className={cn(
-                        "flex items-start gap-3 rounded-2xl border p-4 text-left transition-smooth",
-                        active ? "border-foreground bg-secondary/60" : "border-border hover:border-foreground/40",
-                      )}>
-                      <span className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
-                        active ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground",
-                      )}>
+                {INTERVIEW_MODES.map(m => {
+                const Icon = m.value === "video" ? Video : MessageSquareText;
+                const active = mode === m.value;
+                return <button key={m.value} type="button" onClick={() => setMode(m.value)} className={cn("flex items-start gap-3 rounded-2xl border p-4 text-left transition-smooth", active ? "border-foreground bg-secondary/60" : "border-border hover:border-foreground/40")}>
+                      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full border", active ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground")}>
                         <Icon className="h-4 w-4" />
                       </span>
                       <span>
                         <span className="block text-sm font-medium">{t(m.labelKey)}</span>
                         <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{t(m.descKey)}</span>
                       </span>
-                    </button>
-                  );
-                })}
+                    </button>;
+              })}
               </div>
             </div>
           </Card>
 
-          <Button type="submit" size="lg" disabled={submitting}
-            className="h-12 w-full rounded-full text-sm">
+          <Button type="submit" size="lg" disabled={submitting} className="h-12 w-full rounded-full text-sm">
             {submitting ? t("new.submitting") : t("new.submit")}
             {!submitting && <ArrowRight className="ml-1 h-4 w-4" />}
           </Button>
@@ -275,8 +232,7 @@ const NewTask = () => {
             </div>
             <p className="text-sm leading-relaxed text-muted-foreground">{t("new.preview.desc")}</p>
             <ul className="mt-6 space-y-5">
-              {previewItems.map((item, i) => (
-                <li key={item.key} className="flex gap-3.5">
+              {previewItems.map((item, i) => <li key={item.key} className="flex gap-3.5">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-xs font-semibold">
                     {i + 1}
                   </div>
@@ -284,8 +240,7 @@ const NewTask = () => {
                     <div className="text-sm font-medium">{t(`new.preview.${item.key}.title`)}</div>
                     <div className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{t(`new.preview.${item.key}.desc`)}</div>
                   </div>
-                </li>
-              ))}
+                </li>)}
             </ul>
           </Card>
 
@@ -312,12 +267,19 @@ const NewTask = () => {
           </Card>
         </aside>
       </div>
-    </AppLayout>
-  );
+    </AppLayout>;
 };
-
-const Field = ({ label, icon: Icon, action, children }: { label: string; icon?: typeof FileText; action?: React.ReactNode; children: React.ReactNode }) => (
-  <div className="space-y-2.5">
+const Field = ({
+  label,
+  icon: Icon,
+  action,
+  children
+}: {
+  label: string;
+  icon?: typeof FileText;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) => <div className="space-y-2.5">
     <div className="flex items-center justify-between gap-2">
       <label className="flex items-center gap-2 text-sm font-medium">
         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
@@ -326,24 +288,26 @@ const Field = ({ label, icon: Icon, action, children }: { label: string; icon?: 
       {action}
     </div>
     {children}
-  </div>
-);
-
-const RowField = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <div className="space-y-2.5 py-5 first:pt-0">
+  </div>;
+const RowField = ({
+  label,
+  children
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => <div className="space-y-2.5 py-5 first:pt-0">
     <div className="text-sm font-medium">{label}</div>
     {children}
-  </div>
-);
-
-const SegButton = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
-  <button type="button" onClick={onClick}
-    className={cn(
-      "flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition-smooth",
-      active ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:border-foreground/40",
-    )}>
+  </div>;
+const SegButton = ({
+  active,
+  onClick,
+  children
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) => <button type="button" onClick={onClick} className={cn("flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition-smooth", active ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:border-foreground/40")}>
     {children}
-  </button>
-);
-
+  </button>;
 export default NewTask;
