@@ -63,10 +63,9 @@ export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) 
               {t(item.key)}
             </Link>
           ))}
-        </nav>
-        <div className="flex-1 overflow-y-auto">
           <MyResumesSection refreshKey={resumeRefresh} />
-        </div>
+        </nav>
+        <div className="flex-1 overflow-y-auto" />
         <div className="border-t border-border p-4">
           {user && (
             <div className="mb-3 truncate text-xs text-muted-foreground" title={user.email ?? ""}>
