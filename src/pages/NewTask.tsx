@@ -25,6 +25,7 @@ const NewTask = () => {
   const [jobTitle, setJobTitle] = useState("");
   const [jdText, setJdText] = useState("");
   const [resumeText, setResumeText] = useState("");
+  const [resumeName, setResumeName] = useState("");
   const [direction, setDirection] = useState("");
   const [interviewType, setInterviewType] = useState<InterviewType>("product");
   const [mode, setMode] = useState<InterviewMode>(searchParams.get("mode") === "video" ? "video" : "text");
@@ -107,6 +108,7 @@ const NewTask = () => {
   return <AppLayout step="create" activePath="/new">
       <ResumePickerDialog open={resumePickerOpen} onOpenChange={setResumePickerOpen} onSelect={r => {
       setResumeText(r.content);
+      setResumeName(r.name);
     }} />
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
         <div className="flex items-start gap-4">
@@ -153,7 +155,16 @@ const NewTask = () => {
               <Field label={t("new.resume")} icon={FileUser} action={<Button type="button" variant="outline" size="sm" onClick={() => setResumePickerOpen(true)} className="h-8 rounded-full px-3 text-xs">
                     <FolderOpen className="mr-1.5 h-3.5 w-3.5" />{t("new.resume.configure")}
                   </Button>}>
-                
+                {resumeName ? <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{resumeName}</span>
+                    <CircleCheck className="h-4 w-4 shrink-0 text-success" />
+                  </div> : <button type="button" onClick={() => setResumePickerOpen(true)} className="flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-4 py-3 text-left text-sm text-muted-foreground transition-smooth hover:border-foreground/40 hover:text-foreground">
+                    <FolderOpen className="h-4 w-4 shrink-0" />
+                    {t("new.resume.none")}
+                  </button>}
               </Field>
             </div>
 

@@ -87,6 +87,7 @@
   "new.resume": "你的简历",
   "new.resume.ph": "在此粘贴你的简历文本……",
   "new.resume.configure": "配置简历",
+  "new.resume.none": "未选择简历，点击选择",
   "ocr.upload": "上传图片",
   "ocr.working": "识别中 {{progress}}%",
   "ocr.success": "已从图片中提取文字",

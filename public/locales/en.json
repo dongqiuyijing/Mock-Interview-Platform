@@ -87,6 +87,7 @@
   "new.resume": "Your resume",
   "new.resume.ph": "Paste your resume text here...",
   "new.resume.configure": "Configure resume",
+  "new.resume.none": "No resume selected — click to choose",
   "ocr.upload": "Upload image",
   "ocr.working": "Recognizing {{progress}}%",
   "ocr.success": "Text extracted from image",
