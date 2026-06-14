@@ -175,10 +175,6 @@ const NewTask = () => {
             
 
             <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
-              <RowField label={t("new.direction")}>
-                <Input value={direction} onChange={e => setDirection(e.target.value)} placeholder={t("new.direction.ph")} className="h-11 rounded-xl border-border" />
-              </RowField>
-
               <RowField label={t("new.duration")}>
                 <div className="flex gap-2">
                   {DURATIONS.map(d => <SegButton key={d} active={duration === d} onClick={() => setDuration(d)}>
