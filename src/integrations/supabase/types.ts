@@ -3109,7 +3109,259 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analysis_reports: {
+        Row: {
+          created_at: string
+          id: string
+          interview_plan: Json | null
+          jd_analysis: Json | null
+          match_score: number | null
+          resume_analysis: Json | null
+          risk_points: Json | null
+          strong_matches: Json | null
+          task_id: string
+          user_id: string
+          weak_matches: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interview_plan?: Json | null
+          jd_analysis?: Json | null
+          match_score?: number | null
+          resume_analysis?: Json | null
+          risk_points?: Json | null
+          strong_matches?: Json | null
+          task_id: string
+          user_id: string
+          weak_matches?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interview_plan?: Json | null
+          jd_analysis?: Json | null
+          match_score?: number | null
+          resume_analysis?: Json | null
+          risk_points?: Json | null
+          strong_matches?: Json | null
+          task_id?: string
+          user_id?: string
+          weak_matches?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_reports_task_id_fkey"
+            columns: ["task_id"]
+            referencedRelation: "interview_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_reports: {
+        Row: {
+          ability_scores: Json | null
+          created_at: string
+          id: string
+          optimized_answers: Json | null
+          practice_plan: Json | null
+          question_feedback: Json | null
+          risk_answers: Json | null
+          session_id: string
+          strengths: Json | null
+          summary: Json | null
+          user_id: string
+          weaknesses: Json | null
+        }
+        Insert: {
+          ability_scores?: Json | null
+          created_at?: string
+          id?: string
+          optimized_answers?: Json | null
+          practice_plan?: Json | null
+          question_feedback?: Json | null
+          risk_answers?: Json | null
+          session_id: string
+          strengths?: Json | null
+          summary?: Json | null
+          user_id: string
+          weaknesses?: Json | null
+        }
+        Update: {
+          ability_scores?: Json | null
+          created_at?: string
+          id?: string
+          optimized_answers?: Json | null
+          practice_plan?: Json | null
+          question_feedback?: Json | null
+          risk_answers?: Json | null
+          session_id?: string
+          strengths?: Json | null
+          summary?: Json | null
+          user_id?: string
+          weaknesses?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_reports_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          jd_competency: string | null
+          question_type: string | null
+          role: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          jd_competency?: string | null
+          question_type?: string | null
+          role: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          jd_competency?: string | null
+          question_type?: string | null
+          role?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_messages_session_id_fkey"
+            columns: ["session_id"]
+            referencedRelation: "interview_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_sessions: {
+        Row: {
+          current_stage: string | null
+          ended_at: string | null
+          id: string
+          overall_score: string | null
+          question_count: number
+          started_at: string
+          status: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          current_stage?: string | null
+          ended_at?: string | null
+          id?: string
+          overall_score?: string | null
+          question_count?: number
+          started_at?: string
+          status?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          current_stage?: string | null
+          ended_at?: string | null
+          id?: string
+          overall_score?: string | null
+          question_count?: number
+          started_at?: string
+          status?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_sessions_task_id_fkey"
+            columns: ["task_id"]
+            referencedRelation: "interview_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_tasks: {
+        Row: {
+          created_at: string
+          difficulty: string
+          duration: number
+          id: string
+          interview_type: string
+          jd_text: string
+          job_direction: string
+          job_title: string
+          resume_text: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: string
+          duration?: number
+          id?: string
+          interview_type: string
+          jd_text: string
+          job_direction: string
+          job_title: string
+          resume_text: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string
+          duration?: number
+          id?: string
+          interview_type?: string
+          jd_text?: string
+          job_direction?: string
+          job_title?: string
+          resume_text?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          plan: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          name?: string | null
+          plan?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          plan?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
