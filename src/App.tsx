@@ -8,8 +8,11 @@ import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
+// Create the router once at module scope so re-renders never rebuild the
+// route tree (which would remount pages and wipe their state).
+const router = createBrowserRouter(routers);
+
 const App = () => {
-  const router = createBrowserRouter(routers);
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

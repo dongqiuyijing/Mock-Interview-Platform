@@ -3,6 +3,14 @@
 export type JobDirection = "ai_pm" | "ai_engineer" | "prompt_engineer" | "ai_gtm";
 export type InterviewType = "product" | "technical" | "business" | "hr" | "founder";
 export type Difficulty = "normal" | "stress";
+export type InterviewMode = "text" | "video";
+
+export const INTERVIEW_MODES: { value: InterviewMode; labelKey: string; descKey: string }[] = [
+  { value: "text", labelKey: "mode.text", descKey: "mode.text.desc" },
+  { value: "video", labelKey: "mode.video", descKey: "mode.video.desc" },
+];
+
+export const modeKey = (v: InterviewMode): string => `mode.${v}`;
 
 export const JOB_DIRECTIONS: { value: JobDirection; labelKey: string }[] = [
   { value: "ai_pm", labelKey: "dir.aiPm" },
@@ -57,6 +65,7 @@ export interface InterviewTask {
   jd_text: string;
   resume_text: string;
   status: string;
+  mode: InterviewMode;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +106,7 @@ export interface InterviewSession {
   id: string;
   task_id: string;
   status: string;
+  mode: InterviewMode;
   current_stage: string | null;
   question_count: number;
   overall_score: string | null;

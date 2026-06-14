@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Briefcase, FileUser, GitCompareArrows, ListChecks, ArrowLeft, ArrowRight, Loader2,
+  MessageSquareText, Video,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { StepHeader } from "@/components/StepHeader";
@@ -56,11 +57,11 @@ const Report = () => {
   const advice = analysis.interview_plan?.advice ?? [];
   const score = analysis.match_score ?? 0;
 
-  const startInterview = async () => {
+  const startInterview = async (mode: "text" | "video") => {
     setStarting(true);
     try {
-      const sessionId = await createSession(task.id);
-      navigate(`/interview?sessionId=${sessionId}`);
+      const sessionId = await createSession(task.id, mode);
+      navigate(`${mode === "video" ? "/video-interview" : "/interview"}?sessionId=${sessionId}`);
     } catch (err) {
       toast.error((err as Error).message);
       setStarting(false);
@@ -166,10 +167,17 @@ const Report = () => {
               <div className="text-lg font-semibold">{t("report.cta.title")}</div>
               <div className="mt-1 text-sm text-background/70">{t("report.cta.desc")}</div>
             </div>
-            <Button onClick={startInterview} disabled={starting} variant="secondary" size="lg" className="rounded-full">
-              {starting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("report.cta.button")}<ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
+            <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row">
+              <Button onClick={() => startInterview("text")} disabled={starting} variant="outline" size="lg"
+                className="rounded-full border-background/30 bg-transparent text-background hover:bg-background/10 hover:text-background">
+                {starting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <MessageSquareText className="mr-2 h-4 w-4" />{t("report.cta.text")}
+              </Button>
+              <Button onClick={() => startInterview("video")} disabled={starting} variant="secondary" size="lg" className="rounded-full">
+                {starting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Video className="mr-2 h-4 w-4" />{t("report.cta.video")}
+              </Button>
+            </div>
           </Card>
         </div>
       </div>

@@ -128,8 +128,10 @@ const Interview = () => {
       if (result.done) setDone(true);
     } catch (err) {
       toast.error((err as Error).message);
+      setStreaming("");
     } finally {
       setThinking(false);
+      setStreaming("");
     }
   };
 

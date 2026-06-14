@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   ThumbsUp, ThumbsDown, AlertTriangle, MessageSquareText,
   Sparkles, ClipboardCheck, Copy, RotateCcw, Check, Target,
-  ArrowRight, Loader2,
+  ArrowRight, Loader2, Video,
 } from "lucide-react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer,
@@ -28,6 +28,7 @@ const Feedback = () => {
   const [params] = useSearchParams();
   const sessionId = params.get("sessionId");
   const [jobTitle, setJobTitle] = useState("");
+  const [mode, setMode] = useState<string>("text");
   const [fb, setFb] = useState<FeedbackReport | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,10 +47,11 @@ const Feedback = () => {
       setFb(f);
       const { data: session } = await supabase
         .from("interview_sessions")
-        .select("task_id")
+        .select("task_id, mode")
         .eq("id", sessionId)
         .maybeSingle();
       if (session) {
+        setMode(session.mode ?? "text");
         const { data: tk } = await supabase
           .from("interview_tasks")
           .select("job_title")
@@ -97,6 +99,13 @@ const Feedback = () => {
         {/* Left header + grade */}
         <div className="lg:sticky lg:top-24 lg:self-start">
           <StepHeader index={4} title={t("feedback.title")} description={jobTitle} />
+
+          <div className="mt-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium">
+              {mode === "video" ? <Video className="h-3.5 w-3.5" /> : <MessageSquareText className="h-3.5 w-3.5" />}
+              {mode === "video" ? t("feedback.mode.video") : t("feedback.mode.text")}
+            </span>
+          </div>
 
           <div className="mt-8 border-t border-border pt-8">
             <div className="label-eyebrow mb-4">{t("feedback.grade")}</div>

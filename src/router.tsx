@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import NewTask from "./pages/NewTask";
 import Report from "./pages/Report";
 import Interview from "./pages/Interview";
+import VideoInterview from "./pages/VideoInterview";
 import Feedback from "./pages/Feedback";
 import HistoryPage from "./pages/HistoryPage";
 import Skills from "./pages/Skills";
@@ -49,6 +50,15 @@ export const routers = [
     element: (
       <ProtectedRoute>
         <Interview />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/video-interview",
+    name: "video-interview",
+    element: (
+      <ProtectedRoute>
+        <VideoInterview />
       </ProtectedRoute>
     ),
   },

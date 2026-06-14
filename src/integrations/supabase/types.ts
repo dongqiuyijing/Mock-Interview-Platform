@@ -3255,6 +3255,7 @@ export type Database = {
           current_stage: string | null
           ended_at: string | null
           id: string
+          mode: string
           overall_score: string | null
           question_count: number
           started_at: string
@@ -3266,6 +3267,7 @@ export type Database = {
           current_stage?: string | null
           ended_at?: string | null
           id?: string
+          mode?: string
           overall_score?: string | null
           question_count?: number
           started_at?: string
@@ -3277,6 +3279,7 @@ export type Database = {
           current_stage?: string | null
           ended_at?: string | null
           id?: string
+          mode?: string
           overall_score?: string | null
           question_count?: number
           started_at?: string
@@ -3303,6 +3306,7 @@ export type Database = {
           jd_text: string
           job_direction: string
           job_title: string
+          mode: string
           resume_text: string
           status: string
           updated_at: string
@@ -3317,6 +3321,7 @@ export type Database = {
           jd_text: string
           job_direction: string
           job_title: string
+          mode?: string
           resume_text: string
           status?: string
           updated_at?: string
@@ -3331,6 +3336,7 @@ export type Database = {
           jd_text?: string
           job_direction?: string
           job_title?: string
+          mode?: string
           resume_text?: string
           status?: string
           updated_at?: string

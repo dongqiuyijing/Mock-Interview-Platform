@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   FileText, FileUser, ArrowRight, Sparkles, Target, ListChecks, CircleCheck,
+  MessageSquareText, Video,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -14,8 +15,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  JOB_DIRECTIONS, INTERVIEW_TYPES, DIFFICULTIES, DURATIONS,
-  JobDirection, InterviewType, Difficulty, dirKey,
+  JOB_DIRECTIONS, INTERVIEW_TYPES, DIFFICULTIES, DURATIONS, INTERVIEW_MODES,
+  JobDirection, InterviewType, Difficulty, InterviewMode, dirKey,
 } from "@/lib/interview";
 import { createTask, analyzeTask } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -26,12 +27,16 @@ const SAMPLE_RESUME = `Product Manager with 4 years experience. Shipped a custom
 const NewTask = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [jobTitle, setJobTitle] = useState("");
   const [jdText, setJdText] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [direction, setDirection] = useState<JobDirection>("ai_pm");
   const [interviewType, setInterviewType] = useState<InterviewType>("product");
+  const [mode, setMode] = useState<InterviewMode>(
+    searchParams.get("mode") === "video" ? "video" : "text",
+  );
   const [duration, setDuration] = useState(30);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +63,7 @@ const NewTask = () => {
         duration,
         jdText,
         resumeText,
+        mode,
       });
       await analyzeTask(taskId, i18n.language);
       navigate(`/analysis?taskId=${taskId}`);
@@ -172,6 +178,35 @@ const NewTask = () => {
                     {t(it.labelKey)}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Interview mode: text vs video */}
+            <div className="mt-8">
+              <div className="label-eyebrow mb-3">{t("new.mode")}</div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {INTERVIEW_MODES.map((m) => {
+                  const Icon = m.value === "video" ? Video : MessageSquareText;
+                  const active = mode === m.value;
+                  return (
+                    <button key={m.value} type="button" onClick={() => setMode(m.value)}
+                      className={cn(
+                        "flex items-start gap-3 rounded-2xl border p-4 text-left transition-smooth",
+                        active ? "border-foreground bg-secondary/60" : "border-border hover:border-foreground/40",
+                      )}>
+                      <span className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border",
+                        active ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground",
+                      )}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-medium">{t(m.labelKey)}</span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{t(m.descKey)}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </Card>

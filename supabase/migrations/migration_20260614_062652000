@@ -1,0 +1,6 @@
+-- Add interview mode (text | video) to sessions and tasks for V5 video interview.
+ALTER TABLE interview_sessions
+  ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'text';
+
+ALTER TABLE interview_tasks
+  ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'text';

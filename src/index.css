@@ -153,3 +153,13 @@ body,
   width: 100%;
   height: 100%;
 }
+
+/* Audio equalizer bars for the speaking interviewer avatar */
+@keyframes eq {
+  0%, 100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}

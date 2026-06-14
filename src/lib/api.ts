@@ -6,6 +6,7 @@ import {
   JobDirection,
   InterviewType,
   Difficulty,
+  InterviewMode,
 } from "@/lib/interview";
 
 const FN_URL =
@@ -19,6 +20,7 @@ export interface NewTaskInput {
   duration: number;
   jdText: string;
   resumeText: string;
+  mode?: InterviewMode;
 }
 
 // Insert a task row, returning its id.
@@ -39,6 +41,7 @@ export async function createTask(input: NewTaskInput): Promise<string> {
       duration: input.duration,
       jd_text: input.jdText,
       resume_text: input.resumeText,
+      mode: input.mode ?? "text",
     })
     .select("id")
     .single();
@@ -84,7 +87,10 @@ export async function getAnalysis(
 }
 
 // Create a new interview session for a task, returning its id.
-export async function createSession(taskId: string): Promise<string> {
+export async function createSession(
+  taskId: string,
+  mode: InterviewMode = "text",
+): Promise<string> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -92,7 +98,7 @@ export async function createSession(taskId: string): Promise<string> {
 
   const { data, error } = await supabase
     .from("interview_sessions")
-    .insert({ task_id: taskId, user_id: user.id, status: "active" })
+    .insert({ task_id: taskId, user_id: user.id, status: "active", mode })
     .select("id")
     .single();
   if (error) throw error;

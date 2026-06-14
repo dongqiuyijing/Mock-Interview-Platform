@@ -275,15 +275,20 @@ Conversation so far:
 ${transcript || "(none yet - produce the opening question)"}`;
 }
 
-function coachPrompt(task: any, analysis: any, history: any[], lang: string) {
+function coachPrompt(task: any, analysis: any, history: any[], lang: string, mode = "text") {
   const transcript = history
     .map(
       (m) =>
         `${m.role === "interviewer" ? "INTERVIEWER" : "CANDIDATE"}: ${m.content}`,
     )
     .join("\n");
+  const videoNote =
+    mode === "video"
+      ? `This was a VIDEO CALL interview. Score these 7 ability dimensions exactly (0-100), using these names: "Answer structure", "Key details", "Business judgment", "AI technical understanding", "Communication clarity", "Response speed", "Composure under pressure". Base the assessment on the transcript content.`
+      : `Score 5-7 ability dimensions relevant to the role (0-100).`;
   return `You are an AI-industry interview coach. Based on the full interview transcript, generate a debrief report. Feedback must be specific, evidence-based, and include directly usable optimized answers.
 Role: ${DIRECTION_LABELS[task.job_direction] ?? task.job_direction}.
+${videoNote}
 ${langNote(lang)}
 Return ONLY valid JSON with this exact shape. Put "summary" with "overview" readable first:
 {
@@ -563,7 +568,7 @@ Deno.serve(async (req) => {
       return sseResponse(async (send) => {
         let lastSent = "";
         const raw = await streamAgent(
-          coachPrompt(task, analysis ?? {}, history ?? [], lang),
+          coachPrompt(task, analysis ?? {}, history ?? [], lang, session.mode ?? "text"),
           (full) => {
             const ov = extractStringField(full, "overview");
             if (ov.length > lastSent.length) {

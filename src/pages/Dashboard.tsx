@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   PlusCircle, ArrowRight, TrendingUp, Target, History, CalendarCheck,
-  Radar as RadarIcon, Sparkles,
+  Radar as RadarIcon, Sparkles, Video,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
@@ -85,9 +85,14 @@ const Dashboard = () => {
           </div>
           <div className="text-lg font-semibold">{t(todayTask.themeKey)}</div>
           <p className="mt-1 flex-1 text-sm text-background/70">{t(todayTask.exerciseKey)}</p>
-          <Button variant="secondary" className="mt-4 w-full rounded-full" onClick={() => navigate("/new")}>
-            {t("dash.startToday")}<ArrowRight className="ml-1 h-4 w-4" />
-          </Button>
+          <div className="mt-4 flex flex-col gap-2">
+            <Button variant="secondary" className="w-full rounded-full" onClick={() => navigate("/new?mode=video")}>
+              <Video className="mr-2 h-4 w-4" />{t("dash.startVideo")}
+            </Button>
+            <Button variant="ghost" className="w-full rounded-full text-background hover:bg-background/10 hover:text-background" onClick={() => navigate("/new")}>
+              {t("dash.startToday")}<ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
         </Card>
       </div>
 
