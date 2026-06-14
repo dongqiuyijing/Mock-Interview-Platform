@@ -43,6 +43,7 @@
   "video.ctrl.mic": "Microphone",
   "video.ctrl.cam": "Camera",
   "video.ctrl.captions": "Captions",
+  "video.ctrl.voice": "Voice",
   "video.ctrl.pause": "Pause",
   "video.ctrl.end": "End interview",
   "video.panel.current": "Current question",

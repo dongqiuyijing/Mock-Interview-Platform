@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   Mic, MicOff, Video, VideoOff, Captions, CaptionsOff,
   Pause, Play, PhoneOff, Loader2, Target, Layers, Circle,
-  Square, RotateCcw, Send, Sparkles, RefreshCw,
+  Square, RotateCcw, Send, Sparkles, RefreshCw, Volume2, VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { InterviewerAvatar, SpeakState } from "@/components/InterviewerAvatar";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { supabase } from "@/integrations/supabase/client";
 import { streamNextQuestion, finishInterview } from "@/lib/api";
 import { InterviewTask, dirKey, typeKey } from "@/lib/interview";
@@ -60,6 +61,7 @@ const VideoInterview = () => {
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [captionsOn, setCaptionsOn] = useState(true);
+  const [voiceOn, setVoiceOn] = useState(true);
   const [paused, setPaused] = useState(false);
   const [camState, setCamState] = useState<CamState>("idle");
 
@@ -75,6 +77,10 @@ const VideoInterview = () => {
       lang: speechLang,
       onFinal: (text) => setDraft((d) => (d ? `${d} ${text}` : text).trimStart()),
     });
+
+  // ---- text-to-speech (interviewer voice) ----
+  const { supported: ttsSupported, speak: speakText, cancel: cancelSpeech } =
+    useSpeechSynthesis({ lang: speechLang });
 
   const avatarState: SpeakState =
     phase === "asking" ? "speaking"
@@ -104,6 +110,11 @@ const VideoInterview = () => {
 
   const swapStage = () =>
     setMainStage((s) => (s === "self" ? "interviewer" : "self"));
+
+  // Stop the interviewer voice when muted or paused.
+  useEffect(() => {
+    if (!voiceOn || paused) cancelSpeech();
+  }, [voiceOn, paused, cancelSpeech]);
 
   // ---- camera ----
   const requestCamera = useCallback(async () => {
@@ -167,6 +178,7 @@ const VideoInterview = () => {
       setCurrentStage(result.stage ?? null);
       setCompetency(msg.jd_competency ?? null);
       pushCaption("interviewer", msg.content);
+      if (voiceOn && ttsSupported) speakText(msg.content);
       setLiveQuestion("");
       setPhase(result.done ? "done" : "waiting");
       if (result.done) setFinishOpen(true);
@@ -175,7 +187,7 @@ const VideoInterview = () => {
       setLiveQuestion("");
       setPhase("error");
     }
-  }, [sessionId, i18n.language]);
+  }, [sessionId, i18n.language, voiceOn, ttsSupported, speakText]);
 
   const retry = useCallback(() => {
     askNext(lastAnswerRef.current);
@@ -384,6 +396,10 @@ const VideoInterview = () => {
               on={<Video className="h-5 w-5" />} off={<VideoOff className="h-5 w-5" />} label={t("video.ctrl.cam")} />
             <CtrlButton active={captionsOn} onClick={() => setCaptionsOn((v) => !v)}
               on={<Captions className="h-5 w-5" />} off={<CaptionsOff className="h-5 w-5" />} label={t("video.ctrl.captions")} />
+            {ttsSupported && (
+              <CtrlButton active={voiceOn} onClick={() => setVoiceOn((v) => !v)}
+                on={<Volume2 className="h-5 w-5" />} off={<VolumeX className="h-5 w-5" />} label={t("video.ctrl.voice")} />
+            )}
             <CtrlButton active={!paused} onClick={() => setPaused((v) => !v)}
               on={<Pause className="h-5 w-5" />} off={<Play className="h-5 w-5" />} label={t("video.ctrl.pause")} />
             <button onClick={() => setFinishOpen(true)}

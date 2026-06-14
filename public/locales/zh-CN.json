@@ -43,6 +43,7 @@
   "video.ctrl.mic": "麦克风",
   "video.ctrl.cam": "摄像头",
   "video.ctrl.captions": "字幕",
+  "video.ctrl.voice": "语音",
   "video.ctrl.pause": "暂停",
   "video.ctrl.end": "结束面试",
   "video.panel.current": "当前问题",
