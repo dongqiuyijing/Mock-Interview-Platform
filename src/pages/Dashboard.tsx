@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getUserStats, UserStats } from "@/lib/api";
-import { dirKey, typeKey } from "@/lib/interview";
+import { dirLabel, typeKey } from "@/lib/interview";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -215,7 +215,7 @@ const Dashboard = () => {
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">{s.jobTitle}</div>
                 <div className="text-xs text-muted-foreground">
-                  {t(dirKey(s.jobDirection))} · {formatDate(s.date, i18n.language)}
+                  {dirLabel(s.jobDirection, t)} · {formatDate(s.date, i18n.language)}
                 </div>
               </div>
               <div className="flex items-center gap-3">

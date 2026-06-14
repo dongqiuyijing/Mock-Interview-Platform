@@ -16,7 +16,7 @@ import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import { supabase } from "@/integrations/supabase/client";
 import { streamNextQuestion, finishInterview } from "@/lib/api";
-import { InterviewTask, dirKey, typeKey } from "@/lib/interview";
+import { InterviewTask, dirLabel, typeKey } from "@/lib/interview";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -511,7 +511,7 @@ const VideoInterview = () => {
               </div>
               {task && (
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="rounded-full border border-white/15 px-2.5 py-1 text-xs text-neutral-300">{t(dirKey(task.job_direction))}</span>
+                  <span className="rounded-full border border-white/15 px-2.5 py-1 text-xs text-neutral-300">{dirLabel(task.job_direction, t)}</span>
                   <span className="rounded-full border border-white/15 px-2.5 py-1 text-xs text-neutral-300">{t(typeKey(task.interview_type))}</span>
                 </div>
               )}

@@ -76,7 +76,7 @@ export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/85 px-5 backdrop-blur sm:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background px-5 sm:px-8">
           {/* Mobile brand + nav */}
           <div className="flex items-center gap-4 md:hidden">
             <span className="display text-base">{t("app.name")}</span>

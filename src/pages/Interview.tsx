@@ -16,7 +16,7 @@ import {
   streamNextQuestion, finishInterview,
 } from "@/lib/api";
 import {
-  InterviewTask, InterviewMessage, dirKey, typeKey,
+  InterviewTask, InterviewMessage, dirLabel, typeKey,
 } from "@/lib/interview";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -274,7 +274,7 @@ const Interview = () => {
               <Target className="h-4 w-4" />{t("interview.taskInfo")}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full border border-border px-2.5 py-1 text-xs">{t(dirKey(task.job_direction))}</span>
+              <span className="rounded-full border border-border px-2.5 py-1 text-xs">{dirLabel(task.job_direction, t)}</span>
               <span className="rounded-full border border-border px-2.5 py-1 text-xs">{t(typeKey(task.interview_type))}</span>
             </div>
           </Card>

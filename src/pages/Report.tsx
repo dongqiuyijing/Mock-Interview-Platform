@@ -11,7 +11,7 @@ import { SectionCard, BulletList } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getTask, getAnalysis, createSession } from "@/lib/api";
-import { InterviewTask, AnalysisReport, dirKey, typeKey, difficultyKey } from "@/lib/interview";
+import { InterviewTask, AnalysisReport, dirLabel, typeKey, difficultyKey } from "@/lib/interview";
 import { toast } from "sonner";
 
 const Report = () => {
@@ -69,7 +69,7 @@ const Report = () => {
   };
 
   const meta = [
-    t(dirKey(task.job_direction)),
+    dirLabel(task.job_direction, t),
     t(typeKey(task.interview_type)),
     t(difficultyKey(task.difficulty)),
     t("new.duration.min", { min: task.duration }),

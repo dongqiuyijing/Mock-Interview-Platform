@@ -20,13 +20,29 @@ export const JOB_DIRECTIONS: { value: JobDirection; labelKey: string }[] = [
 ];
 
 // Map DB enum value -> camelCase translation key (keys can't contain underscores).
-export const dirKey = (d: JobDirection): string =>
+// Legacy tasks stored a fixed enum; new tasks store free-text directions.
+export const dirKey = (d: string): string =>
   ({
     ai_pm: "dir.aiPm",
     ai_engineer: "dir.aiEngineer",
     prompt_engineer: "dir.promptEngineer",
     ai_gtm: "dir.aiGtm",
   })[d] ?? "dir.aiPm";
+
+// Legacy enum keys that should be translated; anything else is free text.
+const LEGACY_DIRECTIONS = new Set([
+  "ai_pm",
+  "ai_engineer",
+  "prompt_engineer",
+  "ai_gtm",
+]);
+
+// Resolve a job direction for display: translate known enums, otherwise show
+// the raw free-text value as-is.
+export const dirLabel = (
+  d: string,
+  t: (key: string) => string,
+): string => (LEGACY_DIRECTIONS.has(d) ? t(dirKey(d)) : d);
 
 export const typeKey = (v: InterviewType): string => `itype.${v}`;
 export const difficultyKey = (v: Difficulty): string => `difficulty.${v}`;
@@ -58,7 +74,7 @@ export interface InterviewTask {
   id: string;
   user_id: string;
   job_title: string;
-  job_direction: JobDirection;
+  job_direction: string;
   interview_type: InterviewType;
   difficulty: Difficulty;
   duration: number;

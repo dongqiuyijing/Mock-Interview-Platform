@@ -220,8 +220,30 @@ Resume:
 """${task.resume_text}"""`;
 }
 
-function matchScorerPrompt(task: any, lang: string) {
-  return `You are an AI-industry JD-resume match evaluator. Compare the JD and resume, produce a match score and structured assessment.
+function suggestConfigPrompt(jd: string, resume: string, lang: string) {
+  return `You are an AI-industry recruiting assistant. Read the job description (and resume if provided) and infer the best mock-interview configuration.
+${langNote(lang)}
+Rules:
+- "job_title": the concrete role title from the JD (e.g. "Senior AI Product Manager"). Keep it short.
+- "job_direction": a SHORT free-text role direction/domain decided by the JD content (e.g. "AI Product Manager", "LLM Application Engineer", "AI Solutions Consultant"). Do NOT use fixed enums — describe the actual direction. ${lang === "en" ? "In English." : "In Simplified Chinese."}
+- "interview_type": pick exactly ONE of: product | technical | business | hr | founder (which interview best fits this role).
+- "difficulty": "normal" or "stress".
+- "duration": 15 or 30 (minutes).
+Return ONLY valid JSON with this exact shape:
+{
+  "job_title": "string",
+  "job_direction": "string",
+  "interview_type": "product|technical|business|hr|founder",
+  "difficulty": "normal|stress",
+  "duration": 15
+}
+JD:
+"""${jd}"""
+Resume:
+"""${resume || "(none)"}"""`;
+}
+
+function matchScorerPrompt(task: any, lang: string) {  return `You are an AI-industry JD-resume match evaluator. Compare the JD and resume, produce a match score and structured assessment.
 ${langNote(lang)}
 Return ONLY valid JSON with this exact shape:
 {
@@ -364,6 +386,27 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action, lang = "zh-CN" } = body;
+
+    if (action === "suggest_config") {
+      const { jdText = "", resumeText = "" } = body;
+      if (!jdText.trim()) throw new Error("jd text required");
+      const raw = await runAgent(suggestConfigPrompt(jdText, resumeText, lang));
+      const cfg = extractJson(raw);
+      const allowedTypes = ["product", "technical", "business", "hr", "founder"];
+      const config = {
+        job_title: typeof cfg.job_title === "string" ? cfg.job_title.trim() : "",
+        job_direction:
+          typeof cfg.job_direction === "string" ? cfg.job_direction.trim() : "",
+        interview_type: allowedTypes.includes(cfg.interview_type)
+          ? cfg.interview_type
+          : "product",
+        difficulty: cfg.difficulty === "stress" ? "stress" : "normal",
+        duration: cfg.duration === 15 ? 15 : 30,
+      };
+      return new Response(JSON.stringify({ config }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (action === "analyze") {
       const { taskId } = body;

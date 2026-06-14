@@ -3,7 +3,6 @@ import {
   AnalysisReport,
   FeedbackReport,
   InterviewMessage,
-  JobDirection,
   InterviewType,
   Difficulty,
   InterviewMode,
@@ -14,13 +13,35 @@ const FN_URL =
 
 export interface NewTaskInput {
   jobTitle: string;
-  jobDirection: JobDirection;
+  jobDirection: string;
   interviewType: InterviewType;
   difficulty: Difficulty;
   duration: number;
   jdText: string;
   resumeText: string;
   mode?: InterviewMode;
+}
+
+export interface SuggestedConfig {
+  job_title: string;
+  job_direction: string;
+  interview_type: InterviewType;
+  difficulty: Difficulty;
+  duration: number;
+}
+
+// Ask the backend to infer interview config from the JD (+ resume).
+export async function suggestConfig(
+  jdText: string,
+  resumeText: string,
+  lang: string,
+): Promise<SuggestedConfig> {
+  const { data, error } = await supabase.functions.invoke("interview-agent", {
+    body: { action: "suggest_config", jdText, resumeText, lang },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.config as SuggestedConfig;
 }
 
 // Insert a task row, returning its id.

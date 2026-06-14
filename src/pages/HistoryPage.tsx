@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getUserSessions, UserSessionRecord } from "@/lib/api";
-import { dirKey, typeKey, INTERVIEW_TYPES, InterviewType } from "@/lib/interview";
+import { dirLabel, typeKey, INTERVIEW_TYPES, InterviewType } from "@/lib/interview";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -86,7 +86,7 @@ const HistoryPage = () => {
                   </div>
                   <div className="mt-2 text-base font-semibold">{s.jobTitle}</div>
                   <div className="text-xs text-muted-foreground">
-                    {t(dirKey(s.jobDirection))} · {t(typeKey(s.interviewType))} · {formatDate(s.date, i18n.language)}
+                    {dirLabel(s.jobDirection, t)} · {t(typeKey(s.interviewType))} · {formatDate(s.date, i18n.language)}
                   </div>
                 </div>
                 <Button variant="outline" size="sm" className="rounded-full"

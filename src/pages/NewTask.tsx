@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   FileText, FileUser, ArrowRight, Sparkles, Target, ListChecks, CircleCheck,
-  MessageSquareText, Video,
+  MessageSquareText, Video, Wand2, Loader2,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { ImageOcrButton } from "@/components/ImageOcrButton";
@@ -11,15 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  JOB_DIRECTIONS, INTERVIEW_TYPES, DIFFICULTIES, DURATIONS, INTERVIEW_MODES,
-  JobDirection, InterviewType, Difficulty, InterviewMode, dirKey,
+  INTERVIEW_TYPES, DIFFICULTIES, DURATIONS, INTERVIEW_MODES,
+  InterviewType, Difficulty, InterviewMode,
 } from "@/lib/interview";
-import { createTask, analyzeTask } from "@/lib/api";
+import { createTask, analyzeTask, suggestConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const SAMPLE_JD = `We are hiring an AI Product Manager to own our LLM-powered assistant. You will define the roadmap, design evaluation metrics for answer quality, partner with engineering on RAG and agent workflows, and balance latency, cost and reliability. Experience shipping AI features to production required.`;
@@ -33,7 +30,7 @@ const NewTask = () => {
   const [jobTitle, setJobTitle] = useState("");
   const [jdText, setJdText] = useState("");
   const [resumeText, setResumeText] = useState("");
-  const [direction, setDirection] = useState<JobDirection>("ai_pm");
+  const [direction, setDirection] = useState("");
   const [interviewType, setInterviewType] = useState<InterviewType>("product");
   const [mode, setMode] = useState<InterviewMode>(
     searchParams.get("mode") === "video" ? "video" : "text",
@@ -41,11 +38,34 @@ const NewTask = () => {
   const [duration, setDuration] = useState(30);
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [submitting, setSubmitting] = useState(false);
+  const [autoFilling, setAutoFilling] = useState(false);
 
   const fillSample = () => {
     setJobTitle("Senior AI Product Manager");
     setJdText(SAMPLE_JD);
     setResumeText(SAMPLE_RESUME);
+    setDirection("AI Product Manager");
+  };
+
+  const handleAutoFill = async () => {
+    if (jdText.trim().length < 30) {
+      toast.error(t("new.autofill.needJd"));
+      return;
+    }
+    setAutoFilling(true);
+    try {
+      const cfg = await suggestConfig(jdText, resumeText, i18n.language);
+      if (cfg.job_title) setJobTitle(cfg.job_title);
+      if (cfg.job_direction) setDirection(cfg.job_direction);
+      if (cfg.interview_type) setInterviewType(cfg.interview_type);
+      if (cfg.difficulty) setDifficulty(cfg.difficulty);
+      if (cfg.duration) setDuration(cfg.duration);
+      toast.success(t("new.autofill.done"));
+    } catch (err) {
+      toast.error((err as Error).message ?? t("new.autofill.fail"));
+    } finally {
+      setAutoFilling(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,8 +77,8 @@ const NewTask = () => {
     setSubmitting(true);
     try {
       const taskId = await createTask({
-        jobTitle: jobTitle || t(dirKey(direction)),
-        jobDirection: direction,
+        jobTitle: jobTitle || direction || t("new.direction"),
+        jobDirection: direction || jobTitle || t("new.direction"),
         interviewType,
         difficulty,
         duration,
@@ -129,6 +149,21 @@ const NewTask = () => {
                   className="min-h-[150px] resize-y rounded-xl border-border" />
               </Field>
             </div>
+
+            <div className="mt-7 flex flex-col gap-2 rounded-2xl border border-dashed border-border bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-2.5">
+                <Wand2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <p className="text-xs leading-relaxed text-muted-foreground">{t("new.autofill.hint")}</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" disabled={autoFilling}
+                onClick={handleAutoFill} className="shrink-0 rounded-full">
+                {autoFilling ? (
+                  <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />{t("new.autofill.working")}</>
+                ) : (
+                  <><Wand2 className="mr-2 h-3.5 w-3.5" />{t("new.autofill.btn")}</>
+                )}
+              </Button>
+            </div>
           </Card>
 
           <Card className="p-8">
@@ -136,14 +171,9 @@ const NewTask = () => {
 
             <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
               <RowField label={t("new.direction")}>
-                <Select value={direction} onValueChange={(v) => setDirection(v as JobDirection)}>
-                  <SelectTrigger className="h-11 rounded-xl border-border"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {JOB_DIRECTIONS.map((d) => (
-                      <SelectItem key={d.value} value={d.value}>{t(d.labelKey)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input value={direction} onChange={(e) => setDirection(e.target.value)}
+                  placeholder={t("new.direction.ph")}
+                  className="h-11 rounded-xl border-border" />
               </RowField>
 
               <RowField label={t("new.duration")}>
