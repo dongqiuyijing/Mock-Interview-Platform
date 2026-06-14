@@ -2,10 +2,12 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  LayoutDashboard, PlusCircle, History, Radar, CalendarCheck,
+  LayoutDashboard, PlusCircle, History, Radar, CalendarCheck, LogOut,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Stepper, StepId } from "@/components/Stepper";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -27,6 +29,7 @@ interface AppLayoutProps {
 export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
   const { t } = useTranslation();
   const location = useLocation();
+  const { user, signOut } = useAuth();
   const current = activePath ?? location.pathname;
 
   const isActive = (item: (typeof NAV)[number]) =>
@@ -56,7 +59,15 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
           ))}
         </nav>
         <div className="border-t border-border p-4">
-          <div className="label-eyebrow">{t("app.tagline")}</div>
+          {user && (
+            <div className="mb-3 truncate text-xs text-muted-foreground" title={user.email ?? ""}>
+              {user.email}
+            </div>
+          )}
+          <Button variant="ghost" size="sm" onClick={signOut}
+            className="w-full justify-start rounded-xl text-muted-foreground">
+            <LogOut className="mr-2 h-4 w-4" />{t("nav.signOut")}
+          </Button>
         </div>
       </aside>
 
@@ -71,7 +82,13 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
           <div className="hidden lg:block">
             {step ? <Stepper current={step} /> : <span className="label-eyebrow">{t("app.tagline")}</span>}
           </div>
-          <LanguageSwitcher className="h-9 w-[120px] rounded-full border-border text-xs" />
+          <div className="flex items-center">
+            <LanguageSwitcher className="h-9 w-[120px] rounded-full border-border text-xs" />
+            <Button variant="ghost" size="icon" onClick={signOut}
+              className="ml-2 h-9 w-9 rounded-full text-muted-foreground lg:hidden">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </header>
 
         {/* Mobile nav row */}

@@ -271,5 +271,6 @@
   "interview.answered": "{{count}} answered",
   "interview.panel.active": "Probing your answers",
   "interview.panel.wrapup": "Wrapping up",
-  "feedback.loading": "Loading feedback report..."
+  "feedback.loading": "Loading feedback report...",
+  "nav.signOut": "Sign out"
 }

@@ -1,4 +1,5 @@
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NewTask from "./pages/NewTask";
 import Report from "./pages/Report";
@@ -7,47 +8,85 @@ import Feedback from "./pages/Feedback";
 import HistoryPage from "./pages/HistoryPage";
 import Skills from "./pages/Skills";
 import TrainingPlan from "./pages/TrainingPlan";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const routers = [
   {
+    path: "/auth",
+    name: "auth",
+    element: <Auth />,
+  },
+  {
     path: "/",
     name: "dashboard",
-    element: <Dashboard />,
+    element: (
+      <ProtectedRoute>
+        <Dashboard />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/new",
     name: "new",
-    element: <NewTask />,
+    element: (
+      <ProtectedRoute>
+        <NewTask />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/analysis",
     name: "analysis",
-    element: <Report />,
+    element: (
+      <ProtectedRoute>
+        <Report />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/interview",
     name: "interview",
-    element: <Interview />,
+    element: (
+      <ProtectedRoute>
+        <Interview />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/feedback",
     name: "feedback",
-    element: <Feedback />,
+    element: (
+      <ProtectedRoute>
+        <Feedback />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/history",
     name: "history",
-    element: <HistoryPage />,
+    element: (
+      <ProtectedRoute>
+        <HistoryPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/skills",
     name: "skills",
-    element: <Skills />,
+    element: (
+      <ProtectedRoute>
+        <Skills />
+      </ProtectedRoute>
+    ),
   },
   {
     path: "/plan",
     name: "plan",
-    element: <TrainingPlan />,
+    element: (
+      <ProtectedRoute>
+        <TrainingPlan />
+      </ProtectedRoute>
+    ),
   },
   /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
   {

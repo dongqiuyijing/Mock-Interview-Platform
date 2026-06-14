@@ -271,5 +271,6 @@
   "interview.answered": "已回答 {{count}} 题",
   "interview.panel.active": "正在追问你的回答",
   "interview.panel.wrapup": "即将结束",
-  "feedback.loading": "正在加载反馈报告…"
+  "feedback.loading": "正在加载反馈报告…",
+  "nav.signOut": "退出登录"
 }
