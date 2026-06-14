@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  Award, ThumbsUp, ThumbsDown, AlertTriangle, MessageSquareText,
+  ThumbsUp, ThumbsDown, AlertTriangle, MessageSquareText,
   Sparkles, ClipboardCheck, Copy, RotateCcw, Check,
 } from "lucide-react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from "recharts";
 import { WorkbenchLayout } from "@/components/WorkbenchLayout";
+import { StepHeader } from "@/components/StepHeader";
 import { SectionCard, BulletList } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -52,104 +53,95 @@ const Feedback = () => {
 
   return (
     <WorkbenchLayout step="feedback">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("feedback.title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{task.jobTitle}</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={restart}>
-          <RotateCcw className="mr-2 h-4 w-4" />{t("feedback.restart")}
-        </Button>
-      </div>
+      <div className="grid gap-12 lg:grid-cols-[minmax(280px,380px)_1fr] lg:gap-20">
+        {/* Left header + grade */}
+        <div className="lg:sticky lg:top-28 lg:self-start">
+          <StepHeader index={4} title={t("feedback.title")} description={task.jobTitle} />
 
-      {/* Overview */}
-      <Card className="mb-6 grid gap-6 p-6 md:grid-cols-[200px_1fr]">
-        <div className="flex flex-col items-center justify-center rounded-xl bg-secondary py-6">
-          <Award className="mb-2 h-6 w-6 text-primary" />
-          <span className="text-5xl font-bold text-primary">{fb.grade}</span>
-          <span className="mt-1 text-xs text-muted-foreground">{t("feedback.grade")}</span>
-        </div>
-        <div>
-          <h3 className="mb-2 text-sm font-semibold">{t("feedback.overview")}</h3>
-          <p className="text-sm leading-relaxed text-muted-foreground">{fb.overview}</p>
-        </div>
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <SectionCard icon={Sparkles} title={t("feedback.abilities")} accent="primary">
-          <div className="h-[280px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={fb.abilityScores} outerRadius="70%">
-                <PolarGrid stroke="hsl(var(--border))" />
-                <PolarAngleAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
-                <Radar dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} />
-              </RadarChart>
-            </ResponsiveContainer>
+          <div className="mt-10 border-t border-border pt-8">
+            <div className="label-eyebrow mb-4">{t("feedback.grade")}</div>
+            <span className="display text-7xl">{fb.grade}</span>
+            <p className="mt-5 text-sm leading-relaxed text-muted-foreground">{fb.overview}</p>
           </div>
-        </SectionCard>
 
-        <div className="space-y-6">
-          <SectionCard icon={ThumbsUp} title={t("feedback.strengths")} accent="success">
-            <BulletList items={fb.strengths} marker="check" />
-          </SectionCard>
-          <SectionCard icon={ThumbsDown} title={t("feedback.weaknesses")} accent="warning">
-            <BulletList items={fb.weaknesses} marker="warn" />
-          </SectionCard>
+          <Button variant="outline" size="sm" onClick={restart} className="mt-8 rounded-full">
+            <RotateCcw className="mr-2 h-4 w-4" />{t("feedback.restart")}
+          </Button>
         </div>
 
-        <SectionCard icon={AlertTriangle} title={t("feedback.risks")} accent="destructive">
-          <BulletList items={fb.riskAnswers} marker="risk" empty={t("feedback.noRisk")} />
-        </SectionCard>
-
-        <SectionCard icon={ClipboardCheck} title={t("feedback.practice")} accent="accent">
-          <BulletList items={fb.practicePlan} marker="check" />
-        </SectionCard>
-      </div>
-
-      {/* Per question */}
-      <SectionCard icon={MessageSquareText} title={t("feedback.perQuestion")} accent="primary">
-        <Accordion type="single" collapsible className="w-full">
-          {fb.questionFeedback.map((q, i) => (
-            <AccordionItem key={i} value={`q${i}`}>
-              <AccordionTrigger className="text-left text-sm">{q.question}</AccordionTrigger>
-              <AccordionContent className="space-y-4">
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-warning">{t("feedback.problems")}</div>
-                  <BulletList items={q.problems} marker="warn" />
-                </div>
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-success">{t("feedback.direction")}</div>
-                  <BulletList items={q.direction} marker="check" />
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-      </SectionCard>
-
-      {/* Optimized answers */}
-      <div className="mt-6 space-y-4">
-        <h3 className="flex items-center gap-2 text-lg font-semibold">
-          <Sparkles className="h-5 w-5 text-accent" />{t("feedback.optimized")}
-        </h3>
-        {fb.optimizedAnswers.map((o, i) => (
-          <Card key={i} className="p-5">
-            <div className="mb-2 text-sm font-medium">{o.question}</div>
-            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm leading-relaxed text-muted-foreground">
-              {o.answer}
+        {/* Right content */}
+        <div className="space-y-8">
+          <SectionCard icon={Sparkles} title={t("feedback.abilities")}>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={fb.abilityScores} outerRadius="70%">
+                  <PolarGrid stroke="hsl(var(--border))" />
+                  <PolarAngleAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                  <Radar dataKey="score" stroke="hsl(var(--foreground))" fill="hsl(var(--foreground))" fillOpacity={0.12} />
+                </RadarChart>
+              </ResponsiveContainer>
             </div>
-            <Button variant="ghost" size="sm" className="mt-2" onClick={() => copy(o.answer, i)}>
-              {copied === i ? <Check className="mr-2 h-4 w-4 text-success" /> : <Copy className="mr-2 h-4 w-4" />}
-              {t("feedback.copy")}
-            </Button>
-          </Card>
-        ))}
-      </div>
+          </SectionCard>
 
-      <div className="mt-8 flex justify-center">
-        <Button size="lg" onClick={restart}>
-          <RotateCcw className="mr-2 h-4 w-4" />{t("feedback.newRound")}
-        </Button>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <SectionCard icon={ThumbsUp} title={t("feedback.strengths")}>
+              <BulletList items={fb.strengths} marker="check" />
+            </SectionCard>
+            <SectionCard icon={ThumbsDown} title={t("feedback.weaknesses")}>
+              <BulletList items={fb.weaknesses} marker="warn" />
+            </SectionCard>
+            <SectionCard icon={AlertTriangle} title={t("feedback.risks")}>
+              <BulletList items={fb.riskAnswers} marker="risk" empty={t("feedback.noRisk")} />
+            </SectionCard>
+            <SectionCard icon={ClipboardCheck} title={t("feedback.practice")}>
+              <BulletList items={fb.practicePlan} marker="check" />
+            </SectionCard>
+          </div>
+
+          <SectionCard icon={MessageSquareText} title={t("feedback.perQuestion")}>
+            <Accordion type="single" collapsible className="w-full">
+              {fb.questionFeedback.map((q, i) => (
+                <AccordionItem key={i} value={`q${i}`}>
+                  <AccordionTrigger className="text-left text-sm">{q.question}</AccordionTrigger>
+                  <AccordionContent className="space-y-5 pt-1">
+                    <div>
+                      <div className="label-eyebrow mb-2.5">{t("feedback.problems")}</div>
+                      <BulletList items={q.problems} marker="warn" />
+                    </div>
+                    <div>
+                      <div className="label-eyebrow mb-2.5">{t("feedback.direction")}</div>
+                      <BulletList items={q.direction} marker="check" />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </SectionCard>
+
+          {/* Optimized answers */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 label-eyebrow">
+              <span className="h-1.5 w-1.5 rounded-full bg-foreground" />
+              {t("feedback.optimized")}
+            </div>
+            {fb.optimizedAnswers.map((o, i) => (
+              <Card key={i} className="p-7">
+                <div className="mb-3 text-sm font-medium">{o.question}</div>
+                <div className="rounded-xl border border-border bg-secondary/50 p-5 text-sm leading-relaxed text-muted-foreground">
+                  {o.answer}
+                </div>
+                <Button variant="ghost" size="sm" className="mt-3" onClick={() => copy(o.answer, i)}>
+                  {copied === i ? <Check className="mr-2 h-4 w-4 text-success" /> : <Copy className="mr-2 h-4 w-4" />}
+                  {t("feedback.copy")}
+                </Button>
+              </Card>
+            ))}
+          </div>
+
+          <Button size="lg" onClick={restart} className="h-12 w-full rounded-full">
+            <RotateCcw className="mr-2 h-4 w-4" />{t("feedback.newRound")}
+          </Button>
+        </div>
       </div>
     </WorkbenchLayout>
   );

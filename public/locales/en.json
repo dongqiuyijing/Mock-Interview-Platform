@@ -82,6 +82,8 @@
   "report.cta.button": "Start mock interview",
 
   "interview.title": "Mock interview",
+  "interview.lead": "A realistic, JD-tailored interview with dynamic follow-ups. Answer naturally — the report is built from this conversation.",
+  "interview.live": "Live session",
   "interview.finish": "Finish",
   "interview.allDone": "Generate debrief report",
   "interview.placeholder": "Type your answer... (Cmd/Ctrl + Enter to send)",

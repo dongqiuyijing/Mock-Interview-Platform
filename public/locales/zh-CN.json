@@ -82,6 +82,8 @@
   "report.cta.button": "开始模拟面试",
 
   "interview.title": "模拟面试",
+  "interview.lead": "贴合 JD 的真实面试，带动态追问。自然作答即可——报告将基于这段对话生成。",
+  "interview.live": "进行中",
   "interview.finish": "结束",
   "interview.allDone": "生成复盘报告",
   "interview.placeholder": "输入你的回答……（Cmd/Ctrl + Enter 发送）",
