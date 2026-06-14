@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { InterviewerAvatar, SpeakState } from "@/components/InterviewerAvatar";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { supabase } from "@/integrations/supabase/client";
 import { streamNextQuestion, finishInterview } from "@/lib/api";
 import { InterviewTask, dirKey, typeKey } from "@/lib/interview";
@@ -65,6 +66,14 @@ const VideoInterview = () => {
   const [draft, setDraft] = useState("");
   const [finishOpen, setFinishOpen] = useState(false);
   const [finishing, setFinishing] = useState(false);
+
+  // ---- speech-to-text ----
+  const speechLang = i18n.language.startsWith("zh") ? "zh-CN" : "en-US";
+  const { supported: speechSupported, listening, interim, start: startSpeech, stop: stopSpeech } =
+    useSpeechRecognition({
+      lang: speechLang,
+      onFinal: (text) => setDraft((d) => (d ? `${d} ${text}` : text).trimStart()),
+    });
 
   const avatarState: SpeakState =
     phase === "asking" ? "speaking"
@@ -184,6 +193,7 @@ const VideoInterview = () => {
 
   const submitAnswer = async () => {
     if (!draft.trim() || phase !== "recording") return;
+    if (listening) stopSpeech();
     const answer = draft.trim();
     pushCaption("candidate", answer);
     setAnswered((a) => a + 1);
@@ -377,21 +387,49 @@ const VideoInterview = () => {
             {/* Answer console */}
             <div className="mt-4 border-t border-white/10 pt-4">
               {phase === "waiting" && (
-                <Button onClick={() => setPhase("recording")} className="w-full rounded-full bg-white text-neutral-900 hover:bg-neutral-200">
+                <Button onClick={() => { setPhase("recording"); if (speechSupported) startSpeech(); }} className="w-full rounded-full bg-white text-neutral-900 hover:bg-neutral-200">
                   <Circle className="mr-2 h-3.5 w-3.5 fill-red-500 text-red-500" />{t("video.answer.start")}
                 </Button>
               )}
               {phase === "recording" && (
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs text-red-400">
-                    <span className="h-2 w-2 animate-pulse-soft rounded-full bg-red-500" />
-                    {t("video.answer.recording")}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-red-400">
+                      <span className="h-2 w-2 animate-pulse-soft rounded-full bg-red-500" />
+                      {t("video.answer.recording")}
+                    </div>
+                    {speechSupported && (
+                      <button
+                        onClick={() => (listening ? stopSpeech() : startSpeech())}
+                        className={cn(
+                          "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-smooth",
+                          listening
+                            ? "bg-red-500/15 text-red-400 hover:bg-red-500/25"
+                            : "bg-white/10 text-neutral-200 hover:bg-white/20",
+                        )}>
+                        {listening
+                          ? <><Square className="h-3 w-3 fill-current" />{t("video.voice.stop")}</>
+                          : <><Mic className="h-3.5 w-3.5" />{t("video.voice.start")}</>}
+                      </button>
+                    )}
                   </div>
+
+                  {listening && (
+                    <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-xs text-neutral-400">
+                      <span className="flex gap-0.5">
+                        <span className="h-3 w-0.5 animate-pulse-soft rounded-full bg-emerald-400" />
+                        <span className="h-3 w-0.5 animate-pulse-soft rounded-full bg-emerald-400 [animation-delay:120ms]" />
+                        <span className="h-3 w-0.5 animate-pulse-soft rounded-full bg-emerald-400 [animation-delay:240ms]" />
+                      </span>
+                      {interim || t("video.voice.listening")}
+                    </div>
+                  )}
+
                   <Textarea value={draft} onChange={(e) => setDraft(e.target.value)}
-                    placeholder={t("video.answer.transcribePh")}
+                    placeholder={speechSupported ? t("video.answer.voiceOrType") : t("video.answer.transcribePh")}
                     className="min-h-[120px] resize-none rounded-xl border-white/15 bg-neutral-800 text-neutral-100 placeholder:text-neutral-500" />
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setDraft("")}
+                    <Button variant="ghost" size="sm" onClick={() => { if (listening) stopSpeech(); setDraft(""); }}
                       className="rounded-full text-neutral-400 hover:text-neutral-100">
                       <RotateCcw className="mr-1.5 h-3.5 w-3.5" />{t("video.answer.retake")}
                     </Button>
