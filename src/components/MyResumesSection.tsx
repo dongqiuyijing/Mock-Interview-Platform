@@ -29,21 +29,21 @@ export const MyResumesSection = ({ refreshKey }: { refreshKey?: number }) => {
   };
 
   return (
-    <div className="border-t border-border p-4">
-      <div className="label-eyebrow mb-2 px-1">{t("nav.resumes")}</div>
+    <div className="mt-2 border-t border-border px-4 pt-4">
+      <div className="label-eyebrow mb-2 px-3">{t("nav.resumes")}</div>
       {loading ? (
-        <div className="flex items-center gap-2 px-1 py-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <div className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
         </div>
       ) : resumes.length === 0 ? (
-        <p className="px-1 py-1 text-xs text-muted-foreground">{t("resumes.empty")}</p>
+        <p className="px-3 py-2.5 text-sm text-muted-foreground">{t("resumes.empty")}</p>
       ) : (
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {resumes.slice(0, 6).map((r) => (
             <button key={r.id} type="button" onClick={() => openImage(r)}
               title={r.name}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground transition-smooth hover:bg-secondary hover:text-foreground">
-              <FileText className="h-3.5 w-3.5 shrink-0" />
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-smooth hover:bg-secondary hover:text-foreground">
+              <FileText className="h-4 w-4 shrink-0" />
               <span className="truncate">{r.name}</span>
             </button>
           ))}
