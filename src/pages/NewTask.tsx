@@ -96,9 +96,9 @@ const NewTask = () => {
       </div>
 
       {/* Two-column working layout */}
-      <div className="grid gap-8 lg:grid-cols-[1fr_360px] lg:gap-12">
+      <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-12">
         {/* Left: form */}
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-8">
           <Card className="p-8">
             <div className="label-eyebrow mb-7">{t("new.inputs.title")}</div>
             <div className="space-y-7">
@@ -184,7 +184,7 @@ const NewTask = () => {
         </form>
 
         {/* Right: preparation summary + sample output */}
-        <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+        <aside className="min-w-0 space-y-6 xl:sticky xl:top-28 xl:self-start">
           <Card className="p-7">
             <div className="mb-5 flex items-center gap-2 label-eyebrow">
               <span className="h-1.5 w-1.5 rounded-full bg-foreground" />

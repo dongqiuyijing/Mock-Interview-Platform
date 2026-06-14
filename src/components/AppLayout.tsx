@@ -36,7 +36,7 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
     item.exact ? current === item.to : current.startsWith(item.to);
 
   return (
-    <div className="min-h-screen bg-secondary/40">
+    <div className="min-h-screen overflow-x-hidden bg-secondary/40">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-background lg:flex">
         <div className="flex h-16 items-center border-b border-border px-6">
@@ -72,7 +72,7 @@ export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
       </aside>
 
       {/* Main column */}
-      <div className="lg:pl-60">
+      <div className="min-w-0 lg:pl-60">
         {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/85 px-5 backdrop-blur sm:px-8">
           {/* Mobile brand + nav */}
