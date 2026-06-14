@@ -6,6 +6,7 @@ import {
   MessageSquareText, Video,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { ImageOcrButton } from "@/components/ImageOcrButton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -114,13 +115,15 @@ const NewTask = () => {
                   className="h-11 rounded-xl border-border" />
               </Field>
 
-              <Field label={t("new.jd")} icon={FileText}>
+              <Field label={t("new.jd")} icon={FileText}
+                action={<ImageOcrButton onText={(txt) => setJdText((p) => (p ? `${p}\n${txt}` : txt))} />}>
                 <Textarea value={jdText} onChange={(e) => setJdText(e.target.value)}
                   placeholder={t("new.jd.ph")}
                   className="min-h-[150px] resize-y rounded-xl border-border" />
               </Field>
 
-              <Field label={t("new.resume")} icon={FileUser}>
+              <Field label={t("new.resume")} icon={FileUser}
+                action={<ImageOcrButton onText={(txt) => setResumeText((p) => (p ? `${p}\n${txt}` : txt))} />}>
                 <Textarea value={resumeText} onChange={(e) => setResumeText(e.target.value)}
                   placeholder={t("new.resume.ph")}
                   className="min-h-[150px] resize-y rounded-xl border-border" />
@@ -268,12 +271,15 @@ const NewTask = () => {
   );
 };
 
-const Field = ({ label, icon: Icon, children }: { label: string; icon?: typeof FileText; children: React.ReactNode }) => (
+const Field = ({ label, icon: Icon, action, children }: { label: string; icon?: typeof FileText; action?: React.ReactNode; children: React.ReactNode }) => (
   <div className="space-y-2.5">
-    <label className="flex items-center gap-2 text-sm font-medium">
-      {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-      {label}
-    </label>
+    <div className="flex items-center justify-between gap-2">
+      <label className="flex items-center gap-2 text-sm font-medium">
+        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+        {label}
+      </label>
+      {action}
+    </div>
     {children}
   </div>
 );
