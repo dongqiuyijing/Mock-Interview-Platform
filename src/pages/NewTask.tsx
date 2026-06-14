@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   FileText, FileUser, ArrowRight, Sparkles, Target, ListChecks, CircleCheck,
 } from "lucide-react";
-import { WorkbenchLayout } from "@/components/WorkbenchLayout";
+import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,15 +17,14 @@ import {
   JOB_DIRECTIONS, INTERVIEW_TYPES, DIFFICULTIES, DURATIONS,
   JobDirection, InterviewType, Difficulty, dirKey,
 } from "@/lib/interview";
-import { store, MockTask } from "@/lib/workspaceStore";
-import { generateAnalysis } from "@/lib/mockGenerators";
+import { createTask, analyzeTask } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const SAMPLE_JD = `We are hiring an AI Product Manager to own our LLM-powered assistant. You will define the roadmap, design evaluation metrics for answer quality, partner with engineering on RAG and agent workflows, and balance latency, cost and reliability. Experience shipping AI features to production required.`;
 const SAMPLE_RESUME = `Product Manager with 4 years experience. Shipped a customer-support assistant using retrieval-augmented generation, improving deflection by 28%. Built an eval harness with human + automated scoring. Partnered with ML engineers on prompt iteration and cost optimization.`;
 
 const NewTask = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
   const [jobTitle, setJobTitle] = useState("");
@@ -43,27 +42,29 @@ const NewTask = () => {
     setResumeText(SAMPLE_RESUME);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (jdText.trim().length < 30 || resumeText.trim().length < 30) {
       toast.error(t("new.error.short"));
       return;
     }
     setSubmitting(true);
-    const task: MockTask = {
-      jobTitle: jobTitle || t(dirKey(direction)),
-      jobDirection: direction,
-      interviewType,
-      duration,
-      difficulty,
-      jdText,
-      resumeText,
-      createdAt: new Date().toISOString(),
-    };
-    store.clearAll();
-    store.setTask(task);
-    store.setAnalysis(generateAnalysis(task, t));
-    setTimeout(() => navigate("/analysis"), 650);
+    try {
+      const taskId = await createTask({
+        jobTitle: jobTitle || t(dirKey(direction)),
+        jobDirection: direction,
+        interviewType,
+        difficulty,
+        duration,
+        jdText,
+        resumeText,
+      });
+      await analyzeTask(taskId, i18n.language);
+      navigate(`/analysis?taskId=${taskId}`);
+    } catch (err) {
+      toast.error((err as Error).message ?? t("new.error.short"));
+      setSubmitting(false);
+    }
   };
 
   const previewItems = [
@@ -74,7 +75,7 @@ const NewTask = () => {
   ];
 
   return (
-    <WorkbenchLayout step="create">
+    <AppLayout step="create" activePath="/new">
       {/* Page heading */}
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4 border-b border-border pb-8">
         <div className="flex items-start gap-4">
@@ -228,7 +229,7 @@ const NewTask = () => {
           </Card>
         </aside>
       </div>
-    </WorkbenchLayout>
+    </AppLayout>
   );
 };
 

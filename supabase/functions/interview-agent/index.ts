@@ -10,12 +10,21 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// ---------- AG-UI agent caller ----------
 async function runAgent(prompt: string): Promise<string> {
+  let text = "";
+  await streamAgent(prompt, (full) => {
+    text = full;
+  });
+  return text.trim();
+}
+
+async function streamAgent(
+  prompt: string,
+  onText: (full: string) => void,
+): Promise<string> {
   const apiKey = Deno.env.get("AGENT_API_KEY");
   if (!apiKey) throw new Error("AGENT_API_KEY not configured");
 
-  // 1. create thread
   const tr = await fetch(`${AGENT_BASE}/threads`, {
     method: "POST",
     headers: {
@@ -27,7 +36,6 @@ async function runAgent(prompt: string): Promise<string> {
   const threadJson = await tr.json();
   const threadId = threadJson.thread_id ?? threadJson.threadId ?? threadJson.id;
 
-  // 2. run
   const runBody = {
     threadId,
     runId: crypto.randomUUID(),
@@ -46,10 +54,8 @@ async function runAgent(prompt: string): Promise<string> {
     },
     body: JSON.stringify(runBody),
   });
-  if (!rr.ok || !rr.body)
-    throw new Error(`agent run failed: ${await rr.text()}`);
+  if (!rr.ok || !rr.body) throw new Error(`agent run failed: ${await rr.text()}`);
 
-  // 3. parse SSE stream, accumulate text deltas
   const reader = rr.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -65,22 +71,21 @@ async function runAgent(prompt: string): Promise<string> {
       return;
     }
     const type = (evt.type ?? evt.event ?? "").toString().toUpperCase();
-
-    // streaming text deltas (AG-UI TEXT_MESSAGE_CONTENT etc.)
     if (typeof evt.delta === "string") {
       text += evt.delta;
+      onText(text);
       return;
     }
     if (evt.delta && typeof evt.delta.content === "string") {
       text += evt.delta.content;
+      onText(text);
       return;
     }
-    // some events carry full content
     if (type.includes("TEXT_MESSAGE") && typeof evt.content === "string") {
       text += evt.content;
+      onText(text);
       return;
     }
-    // full snapshot of messages — take last assistant message
     if (
       (type.includes("MESSAGES_SNAPSHOT") || type.includes("STATE_SNAPSHOT")) &&
       Array.isArray(evt.messages)
@@ -88,10 +93,13 @@ async function runAgent(prompt: string): Promise<string> {
       const last = [...evt.messages]
         .reverse()
         .find((m: any) => m.role === "assistant" && m.content);
-      if (last && !text)
-        text = typeof last.content === "string"
-          ? last.content
-          : JSON.stringify(last.content);
+      if (last && !text) {
+        text =
+          typeof last.content === "string"
+            ? last.content
+            : JSON.stringify(last.content);
+        onText(text);
+      }
     }
   };
 
@@ -116,7 +124,39 @@ async function runAgent(prompt: string): Promise<string> {
   return text.trim();
 }
 
-// Extract JSON object from agent text output (handles ```json fences / surrounding prose)
+function extractStringField(s: string, field: string): string {
+  const key = `"${field}"`;
+  const ki = s.indexOf(key);
+  if (ki === -1) return "";
+  let i = ki + key.length;
+  while (i < s.length && s[i] !== ":") i++;
+  i++;
+  while (i < s.length && /\s/.test(s[i])) i++;
+  if (s[i] !== '"') return "";
+  i++;
+  let out = "";
+  const NL = String.fromCharCode(10);
+  const TB = String.fromCharCode(9);
+  const CR = String.fromCharCode(13);
+  while (i < s.length) {
+    const c = s[i];
+    if (c === "\\") {
+      const next = s[i + 1];
+      if (next === undefined) break;
+      if (next === "n") out += NL;
+      else if (next === "t") out += TB;
+      else if (next === "r") out += CR;
+      else out += next;
+      i += 2;
+      continue;
+    }
+    if (c === '"') break;
+    out += c;
+    i++;
+  }
+  return out;
+}
+
 function extractJson(s: string): any {
   if (!s) throw new Error("empty agent response");
   let t = s.trim();
@@ -130,7 +170,6 @@ function extractJson(s: string): any {
   return JSON.parse(t);
 }
 
-// ---------- Prompt builders ----------
 const DIRECTION_LABELS: Record<string, string> = {
   ai_pm: "AI Product Manager",
   ai_engineer: "AI Application Engineer",
@@ -141,7 +180,7 @@ const DIRECTION_LABELS: Record<string, string> = {
 function langNote(lang: string) {
   return lang === "en"
     ? "Respond in English."
-    : "Respond in Simplified Chinese (中文).";
+    : "Respond in Simplified Chinese.";
 }
 
 function jdAnalystPrompt(task: any, lang: string) {
@@ -150,11 +189,11 @@ Target role: ${DIRECTION_LABELS[task.job_direction] ?? task.job_direction}. Inte
 ${langNote(lang)}
 Return ONLY valid JSON with this exact shape:
 {
-  "positioning": "string - the real positioning of this role beyond its title",
+  "positioning": "string",
   "core_responsibilities": ["string"],
   "must_have": ["string"],
   "nice_to_have": ["string"],
-  "ai_focus_points": ["string - AI-industry specific evaluation points"],
+  "ai_focus_points": ["string"],
   "implicit_requirements": ["string"],
   "interview_focus": ["string"],
   "competency_weights": [{"name":"string","weight":number}]
@@ -164,7 +203,7 @@ JD:
 }
 
 function resumeAnalystPrompt(task: any, lang: string) {
-  return `You are an AI-industry resume analyst. Analyze the candidate resume against the target JD. Do NOT vaguely praise. Judge strictly based on resume evidence. Point out which projects are most worth deep-diving and what the interviewer is likely to probe.
+  return `You are an AI-industry resume analyst. Analyze the candidate resume against the target JD. Judge strictly based on resume evidence. Point out which projects are most worth deep-diving and what the interviewer is likely to probe.
 ${langNote(lang)}
 Return ONLY valid JSON with this exact shape:
 {
@@ -172,8 +211,8 @@ Return ONLY valid JSON with this exact shape:
   "matched_experience": ["string"],
   "gaps": ["string"],
   "risks": ["string"],
-  "probe_points": ["string - projects/claims the interviewer will dig into"],
-  "evidence_to_prepare": ["string - data/proof the candidate should prepare"]
+  "probe_points": ["string"],
+  "evidence_to_prepare": ["string"]
 }
 JD:
 """${task.jd_text}"""
@@ -186,7 +225,7 @@ function matchScorerPrompt(task: any, lang: string) {
 ${langNote(lang)}
 Return ONLY valid JSON with this exact shape:
 {
-  "match_score": number (0-100),
+  "match_score": number,
   "strong_matches": ["string"],
   "weak_matches": ["string"],
   "risk_points": ["string"],
@@ -216,15 +255,15 @@ function interviewerPrompt(
     )
     .join("\n");
   return `You are an AI-industry mock interviewer for the role: ${DIRECTION_LABELS[task.job_direction] ?? task.job_direction} (${task.interview_type} interview). ${isStress ? "Use a STRESS interview style: be demanding, challenge weak answers firmly." : "Use a normal professional style."}
-Conduct the interview based on the JD, resume and match report. Ask ONE question at a time. After the candidate answers, decide whether to follow up: if the answer is too vague, probe for specific details, data, evaluation methods and the candidate's real contribution; if the answer is strong, raise difficulty. Questions MUST be tailored to this JD, not generic. If the candidate is stuck, you may give one light hint inside the question.
+Conduct the interview based on the JD, resume and match report. Ask ONE question at a time. After the candidate answers, decide whether to follow up: if the answer is too vague, probe for specifics, data, evaluation methods and the candidate real contribution; if the answer is strong, raise difficulty. Questions MUST be tailored to this JD, not generic.
 This is question ${questionCount + 1} of about ${maxQuestions}. ${questionCount + 1 >= maxQuestions ? "This should be the FINAL question, then set done=true after they answer." : ""}
 ${langNote(lang)}
-Return ONLY valid JSON:
+Return ONLY valid JSON. Put the "question" field FIRST:
 {
-  "question": "string - your next single question or follow-up",
-  "stage": "string - current interview stage name",
-  "question_type": "string - e.g. background, project_deepdive, competency_probe, case, wrapup",
-  "jd_competency": "string - which JD competency this question targets",
+  "question": "string",
+  "stage": "string",
+  "question_type": "string",
+  "jd_competency": "string",
   "done": boolean
 }
 JD:
@@ -233,7 +272,7 @@ Resume:
 """${task.resume_text}"""
 Match report (JSON): ${JSON.stringify(analysis)}
 Conversation so far:
-${transcript || "(none yet — produce the opening question)"}`;
+${transcript || "(none yet - produce the opening question)"}`;
 }
 
 function coachPrompt(task: any, analysis: any, history: any[], lang: string) {
@@ -243,25 +282,52 @@ function coachPrompt(task: any, analysis: any, history: any[], lang: string) {
         `${m.role === "interviewer" ? "INTERVIEWER" : "CANDIDATE"}: ${m.content}`,
     )
     .join("\n");
-  return `You are an AI-industry interview coach. Based on the full interview transcript, generate a debrief report. Feedback must be specific, evidence-based, and include directly usable optimized answers. Evaluate whether the candidate has the role's capabilities in an AI-industry context: AI product judgment, technical understanding, Eval awareness, cost awareness, delivery/landing ability, communication.
+  return `You are an AI-industry interview coach. Based on the full interview transcript, generate a debrief report. Feedback must be specific, evidence-based, and include directly usable optimized answers.
 Role: ${DIRECTION_LABELS[task.job_direction] ?? task.job_direction}.
 ${langNote(lang)}
-Return ONLY valid JSON with this exact shape:
+Return ONLY valid JSON with this exact shape. Put "summary" with "overview" readable first:
 {
-  "summary": {"grade":"string e.g. B+","overview":"string"},
-  "ability_scores": [{"name":"string","score":number (0-10)}],
+  "summary": {"grade":"string","overview":"string"},
+  "ability_scores": [{"name":"string","score":number}],
   "strengths": ["string"],
   "weaknesses": ["string"],
-  "risk_answers": ["string - high-risk answers that could hurt the candidate"],
+  "risk_answers": ["string"],
   "question_feedback": [{"question":"string","problems":["string"],"direction":["string"]}],
-  "optimized_answers": [{"question":"string","answer":"string - a stronger model answer"}],
-  "practice_plan": ["string - next-step practice suggestions"]
+  "optimized_answers": [{"question":"string","answer":"string"}],
+  "practice_plan": ["string"]
 }
 JD:
 """${task.jd_text}"""
 Match report: ${JSON.stringify(analysis)}
 Full transcript:
 ${transcript}`;
+}
+
+function sseResponse(
+  producer: (send: (obj: any) => void) => Promise<void>,
+): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (obj: any) =>
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      try {
+        await producer(send);
+      } catch (e) {
+        send({ type: "error", error: (e as Error).message ?? "error" });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
 
 Deno.serve(async (req) => {
@@ -294,7 +360,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action, lang = "zh-CN" } = body;
 
-    // ----- ANALYZE: run JD + resume + match, store report -----
     if (action === "analyze") {
       const { taskId } = body;
       const { data: task, error: te } = await supabase
@@ -344,7 +409,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ----- INTERVIEW NEXT: get next interviewer question -----
     if (action === "interview_next") {
       const { sessionId, answer } = body;
       const { data: session, error: se } = await supabase
@@ -367,7 +431,6 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      // persist candidate answer if present
       if (answer && answer.trim()) {
         await supabase.from("interview_messages").insert({
           session_id: sessionId,
@@ -383,7 +446,6 @@ Deno.serve(async (req) => {
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true });
 
-      // free plan caps at 5 questions
       const { data: profile } = await supabase
         .from("profiles")
         .select("plan")
@@ -401,53 +463,65 @@ Deno.serve(async (req) => {
           .from("interview_sessions")
           .update({ status: "awaiting_feedback" })
           .eq("id", sessionId);
-        return new Response(
-          JSON.stringify({ done: true, capped: !isPaid }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        return new Response(JSON.stringify({ done: true, capped: !isPaid }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      const raw = await runAgent(
-        interviewerPrompt(
-          task,
-          analysis ?? {},
-          history ?? [],
-          task.difficulty === "stress",
-          askedCount,
-          maxQuestions,
-          lang,
-        ),
-      );
-      const q = extractJson(raw);
+      return sseResponse(async (send) => {
+        let lastSent = "";
+        const raw = await streamAgent(
+          interviewerPrompt(
+            task,
+            analysis ?? {},
+            history ?? [],
+            task.difficulty === "stress",
+            askedCount,
+            maxQuestions,
+            lang,
+          ),
+          (full) => {
+            const q = extractStringField(full, "question");
+            if (q.length > lastSent.length) {
+              send({ type: "delta", text: q.slice(lastSent.length) });
+              lastSent = q;
+            }
+          },
+        );
 
-      const { data: msg } = await supabase
-        .from("interview_messages")
-        .insert({
-          session_id: sessionId,
-          user_id: user.id,
-          role: "interviewer",
-          content: q.question,
-          question_type: q.question_type ?? null,
-          jd_competency: q.jd_competency ?? null,
-        })
-        .select()
-        .single();
+        const q = extractJson(raw);
 
-      await supabase
-        .from("interview_sessions")
-        .update({
-          current_stage: q.stage ?? null,
-          question_count: askedCount + 1,
-        })
-        .eq("id", sessionId);
+        const { data: msg } = await supabase
+          .from("interview_messages")
+          .insert({
+            session_id: sessionId,
+            user_id: user.id,
+            role: "interviewer",
+            content: q.question,
+            question_type: q.question_type ?? null,
+            jd_competency: q.jd_competency ?? null,
+          })
+          .select()
+          .single();
 
-      return new Response(
-        JSON.stringify({ message: msg, stage: q.stage, done: !!q.done }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+        await supabase
+          .from("interview_sessions")
+          .update({
+            current_stage: q.stage ?? null,
+            question_count: askedCount + 1,
+            status: "active",
+          })
+          .eq("id", sessionId);
+
+        send({
+          type: "done",
+          message: msg,
+          stage: q.stage ?? null,
+          done: !!q.done,
+        });
+      });
     }
 
-    // ----- FINISH: coach generates feedback report -----
     if (action === "finish") {
       const { sessionId } = body;
       const { data: session } = await supabase
@@ -457,7 +531,6 @@ Deno.serve(async (req) => {
         .single();
       if (!session) throw new Error("session not found");
 
-      // return existing report if already generated
       const { data: existing } = await supabase
         .from("feedback_reports")
         .select("*")
@@ -487,40 +560,49 @@ Deno.serve(async (req) => {
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true });
 
-      const raw = await runAgent(
-        coachPrompt(task, analysis ?? {}, history ?? [], lang),
-      );
-      const fb = extractJson(raw);
+      return sseResponse(async (send) => {
+        let lastSent = "";
+        const raw = await streamAgent(
+          coachPrompt(task, analysis ?? {}, history ?? [], lang),
+          (full) => {
+            const ov = extractStringField(full, "overview");
+            if (ov.length > lastSent.length) {
+              send({ type: "delta", text: ov.slice(lastSent.length) });
+              lastSent = ov;
+            }
+          },
+        );
 
-      const { data: report, error: fe } = await supabase
-        .from("feedback_reports")
-        .insert({
-          session_id: sessionId,
-          user_id: user.id,
-          summary: fb.summary ?? {},
-          ability_scores: fb.ability_scores ?? [],
-          strengths: fb.strengths ?? [],
-          weaknesses: fb.weaknesses ?? [],
-          risk_answers: fb.risk_answers ?? [],
-          question_feedback: fb.question_feedback ?? [],
-          optimized_answers: fb.optimized_answers ?? [],
-          practice_plan: fb.practice_plan ?? [],
-        })
-        .select()
-        .single();
-      if (fe) throw fe;
+        const fb = extractJson(raw);
 
-      await supabase
-        .from("interview_sessions")
-        .update({
-          status: "completed",
-          ended_at: new Date().toISOString(),
-          overall_score: fb.summary?.grade ?? null,
-        })
-        .eq("id", sessionId);
+        const { data: report, error: fe } = await supabase
+          .from("feedback_reports")
+          .insert({
+            session_id: sessionId,
+            user_id: user.id,
+            summary: fb.summary ?? {},
+            ability_scores: fb.ability_scores ?? [],
+            strengths: fb.strengths ?? [],
+            weaknesses: fb.weaknesses ?? [],
+            risk_answers: fb.risk_answers ?? [],
+            question_feedback: fb.question_feedback ?? [],
+            optimized_answers: fb.optimized_answers ?? [],
+            practice_plan: fb.practice_plan ?? [],
+          })
+          .select()
+          .single();
+        if (fe) throw fe;
 
-      return new Response(JSON.stringify({ report }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        await supabase
+          .from("interview_sessions")
+          .update({
+            status: "completed",
+            ended_at: new Date().toISOString(),
+            overall_score: fb.summary?.grade ?? null,
+          })
+          .eq("id", sessionId);
+
+        send({ type: "done", report });
       });
     }
 
