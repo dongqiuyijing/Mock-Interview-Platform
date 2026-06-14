@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileUp, ImagePlus, Loader2, Sparkles } from "lucide-react";
+import { FileUp, FileText, ImagePlus, Loader2, Sparkles } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -119,7 +119,10 @@ export const OnboardingResumeDialog = ({ onDone }: OnboardingResumeDialogProps) 
               <Input value={name} onChange={(e) => setName(e.target.value)}
                 placeholder={t("onboarding.namePh")} className="h-11 rounded-xl" />
             </div>
-            <p className="line-clamp-4 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">{content}</p>
+            <div className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2.5 text-xs text-muted-foreground">
+              <FileText className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{file.name}</span>
+            </div>
             <Button type="button" variant="ghost" size="sm" onClick={() => { setFile(null); setContent(""); setName(""); }} className="rounded-full">
               {t("resumePicker.reselect")}
             </Button>

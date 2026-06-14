@@ -155,7 +155,10 @@ export const ResumePickerDialog = ({ open, onOpenChange, onSelect }: ResumePicke
                     <Input value={name} onChange={(e) => setName(e.target.value)}
                       placeholder={t("resumePicker.namePh")} className="h-11 rounded-xl" />
                   </div>
-                  <p className="line-clamp-3 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">{content}</p>
+                  <p className="flex items-center gap-2 rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
+                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{file.name}</span>
+                  </p>
                   <div className="flex gap-2">
                     <Button type="button" variant="ghost" size="sm" onClick={resetUpload} className="rounded-full">
                       {t("resumePicker.reselect")}
