@@ -143,11 +143,12 @@ const Feedback = () => {
 
           {abilityScores.length > 0 && (
             <SectionCard icon={Sparkles} title={t("feedback.abilities")}>
-              <div className="h-[300px] w-full">
+              <div className="h-[360px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={abilityScores} outerRadius="70%">
+                  <RadarChart data={abilityScores} outerRadius="62%" margin={{ top: 20, right: 60, bottom: 20, left: 60 }}>
                     <PolarGrid stroke="hsl(var(--border))" />
-                    <PolarAngleAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                    <PolarAngleAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+                      tickFormatter={(v: string) => (v.length > 8 ? `${v.slice(0, 8)}…` : v)} />
                     <Radar dataKey="score" stroke="hsl(var(--foreground))" fill="hsl(var(--foreground))" fillOpacity={0.12} />
                   </RadarChart>
                 </ResponsiveContainer>
