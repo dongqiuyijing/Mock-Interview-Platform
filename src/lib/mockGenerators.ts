@@ -90,7 +90,7 @@ export function generateAnalysis(task: MockTask, t: TFunction): MockAnalysis {
   };
 }
 
-// Scripted interviewer questions (5 total). Each maps to a competency + stage.
+// Scripted interviewer questions (5 total). Each maps to a competency + stage + intent.
 export function interviewQuestions(task: MockTask, t: TFunction): MockMessage[] {
   const focus = DIRECTION_FOCUS[task.jobDirection] ?? DIRECTION_FOCUS.ai_pm;
   const defs = [
@@ -106,6 +106,7 @@ export function interviewQuestions(task: MockTask, t: TFunction): MockMessage[] 
     content: t(`mock.iv.${d.key}`),
     competency: d.comp,
     stage: d.stage,
+    intent: t(`mock.iv.${d.key}.intent`),
   }));
 }
 
@@ -120,6 +121,7 @@ export function generateFeedback(
     answered.reduce((s, m) => s + m.content.length, 0) /
     Math.max(answered.length, 1);
   const baseGrade = avgLen > 220 ? "A-" : avgLen > 120 ? "B+" : "B";
+  const score = Math.max(55, Math.min(90, 64 + Math.round(avgLen / 12)));
 
   const abilityScores = focus.map((name, i) => ({
     name,
@@ -130,11 +132,19 @@ export function generateFeedback(
 
   return {
     grade: baseGrade,
+    score,
     overview: t("mock.fb.overview"),
     abilityScores,
     strengths: [t("mock.fb.strength1"), t("mock.fb.strength2")],
     weaknesses: [t("mock.fb.weak1"), t("mock.fb.weak2")],
     riskAnswers: [t("mock.fb.risk1")],
+    topImprovements: [
+      t("mock.fb.improve1"),
+      t("mock.fb.improve2"),
+      t("mock.fb.improve3"),
+    ],
+    nextDirections: [t("mock.fb.next1"), t("mock.fb.next2")],
+    followUps: [t("mock.fb.followup1"), t("mock.fb.followup2")],
     questionFeedback: questions.slice(0, 3).map((q) => ({
       question: q.content,
       problems: [t("mock.fb.prob1"), t("mock.fb.prob2")],
@@ -150,4 +160,12 @@ export function generateFeedback(
       t("mock.fb.practice3"),
     ],
   };
+}
+
+// Lightweight per-answer quality hint for the live interviewer panel.
+export function answerHint(text: string, t: TFunction): { level: "low" | "mid" | "high"; key: string } {
+  const len = text.trim().length;
+  if (len < 60) return { level: "low", key: t("mock.hint.low") };
+  if (len < 180) return { level: "mid", key: t("mock.hint.mid") };
+  return { level: "high", key: t("mock.hint.high") };
 }
