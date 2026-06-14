@@ -136,10 +136,10 @@ const NewTask = () => {
         {/* Left: form */}
         <form onSubmit={handleSubmit} className="min-w-0 space-y-8">
           <Card className="p-8">
-            <div className="label-eyebrow mb-7">{t("new.inputs.title")}</div>
+            
             <div className="space-y-7">
               <Field label={t("new.jobTitle")}>
-                <Input value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder={t("new.jobTitle.ph")} className="h-11 rounded-xl border-border" />
+                
               </Field>
 
               <Field label={t("new.jd")} icon={FileText} action={<ImageOcrButton onText={txt => {
@@ -292,10 +292,7 @@ const Field = ({
   children: React.ReactNode;
 }) => <div className="space-y-2.5">
     <div className="flex items-center justify-between gap-2">
-      <label className="flex items-center gap-2 text-sm font-medium">
-        {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
-        {label}
-      </label>
+      
       {action}
     </div>
     {children}
