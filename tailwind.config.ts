@@ -27,7 +27,8 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					soft: 'hsl(var(--primary-soft))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -43,7 +44,8 @@ export default {
 				},
 				accent: {
 					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))'
+					foreground: 'hsl(var(--accent-foreground))',
+					soft: 'hsl(var(--accent-soft))'
 				},
 				success: {
 					DEFAULT: 'hsl(var(--success))',
@@ -79,8 +81,7 @@ export default {
 			},
 			boxShadow: {
 				card: 'var(--shadow-md)',
-				elegant: 'var(--shadow-lg)',
-				glow: 'var(--shadow-glow)'
+				elegant: 'var(--shadow-lg)'
 			},
 			keyframes: {
 				'accordion-down': {

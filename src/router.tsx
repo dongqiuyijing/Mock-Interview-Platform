@@ -1,68 +1,29 @@
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
 import NewTask from "./pages/NewTask";
 import Report from "./pages/Report";
 import Interview from "./pages/Interview";
 import Feedback from "./pages/Feedback";
-import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const routers = [
   {
     path: "/",
     name: "home",
-    element: <Index />,
+    element: <NewTask />,
   },
   {
-    path: "/login",
-    name: "login",
-    element: <Auth />,
+    path: "/analysis",
+    name: "analysis",
+    element: <Report />,
   },
   {
-    path: "/dashboard",
-    name: "dashboard",
-    element: (
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/tasks/new",
-    name: "new-task",
-    element: (
-      <ProtectedRoute>
-        <NewTask />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/tasks/:id/report",
-    name: "report",
-    element: (
-      <ProtectedRoute>
-        <Report />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/sessions/:id",
+    path: "/interview",
     name: "interview",
-    element: (
-      <ProtectedRoute>
-        <Interview />
-      </ProtectedRoute>
-    ),
+    element: <Interview />,
   },
   {
-    path: "/sessions/:id/feedback",
+    path: "/feedback",
     name: "feedback",
-    element: (
-      <ProtectedRoute>
-        <Feedback />
-      </ProtectedRoute>
-    ),
+    element: <Feedback />,
   },
   /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
   {

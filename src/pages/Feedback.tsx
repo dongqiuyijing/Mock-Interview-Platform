@@ -1,242 +1,157 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
-  ArrowLeft, Loader2, Award, Gauge, ThumbsUp, ThumbsDown,
-  ShieldAlert, MessageSquareText, Sparkles, ListTodo, Copy,
+  Award, ThumbsUp, ThumbsDown, AlertTriangle, MessageSquareText,
+  Sparkles, ClipboardCheck, Copy, RotateCcw, Check,
 } from "lucide-react";
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
-import { AppHeader } from "@/components/AppHeader";
+import { WorkbenchLayout } from "@/components/WorkbenchLayout";
 import { SectionCard, BulletList } from "@/components/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { FeedbackReport, InterviewSession } from "@/lib/interview";
+import { store, MockTask, MockFeedback } from "@/lib/workspaceStore";
 
 const Feedback = () => {
   const { t } = useTranslation();
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const lang = localStorage.getItem("i18nextLng") ?? "zh-CN";
-
-  const [report, setReport] = useState<FeedbackReport | null>(null);
-  const [session, setSession] = useState<InterviewSession | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [task, setTask] = useState<MockTask | null>(null);
+  const [fb, setFb] = useState<MockFeedback | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!id) return;
-    (async () => {
-      const { data: sess } = await supabase
-        .from("interview_sessions").select("*").eq("id", id).maybeSingle();
-      setSession(sess as InterviewSession);
-      const { data } = await supabase
-        .from("feedback_reports").select("*").eq("session_id", id).maybeSingle();
-      if (data) {
-        setReport(data as FeedbackReport);
-        setLoading(false);
-        return;
-      }
-      // generate if missing
-      setGenerating(true);
-      const { error } = await supabase.functions.invoke("interview-agent", {
-        body: { action: "finish", sessionId: id, lang },
-      });
-      if (!error) {
-        const { data: fresh } = await supabase
-          .from("feedback_reports").select("*").eq("session_id", id).maybeSingle();
-        setReport(fresh as FeedbackReport);
-      } else {
-        toast.error(t("feedback.error"));
-      }
-      setGenerating(false);
-      setLoading(false);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+    const tk = store.getTask();
+    const f = store.getFeedback();
+    if (!tk || !f) {
+      navigate("/");
+      return;
+    }
+    setTask(tk);
+    setFb(f);
+  }, [navigate]);
 
-  const copyAnswer = (text: string) => {
+  if (!task || !fb) return null;
+
+  const copy = (text: string, i: number) => {
     navigator.clipboard.writeText(text);
+    setCopied(i);
     toast.success(t("feedback.copied"));
+    setTimeout(() => setCopied(null), 1500);
   };
 
-  if (loading || generating) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <AppHeader />
-        <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-muted-foreground">{t("feedback.generating")}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!report) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <AppHeader />
-        <div className="container py-20 text-center">
-          <p className="text-muted-foreground">{t("feedback.notfound")}</p>
-          <Button className="mt-4" onClick={() => navigate("/dashboard")}>{t("common.back")}</Button>
-        </div>
-      </div>
-    );
-  }
-
-  const radarData = (report.ability_scores ?? []).map((s) => ({
-    name: s.name, score: s.score,
-  }));
+  const restart = () => {
+    store.clearAll();
+    navigate("/");
+  };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader />
-      <main className="container max-w-5xl flex-1 py-10">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t("common.back")}
+    <WorkbenchLayout step="feedback">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("feedback.title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{task.jobTitle}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={restart}>
+          <RotateCcw className="mr-2 h-4 w-4" />{t("feedback.restart")}
         </Button>
+      </div>
 
-        {/* Overall */}
-        <Card className="overflow-hidden gradient-hero p-8 shadow-elegant">
-          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary-foreground/15 backdrop-blur">
-              <Award className="h-10 w-10 text-primary-foreground" />
-            </div>
-            <div className="flex-1">
-              <div className="text-sm font-medium text-primary-foreground/80">{t("feedback.grade")}</div>
-              <div className="text-4xl font-bold text-primary-foreground">
-                {report.summary?.grade ?? "—"}
-              </div>
-              {report.summary?.overview && (
-                <p className="mt-2 text-sm leading-relaxed text-primary-foreground/90">
-                  {report.summary.overview}
-                </p>
-              )}
-            </div>
+      {/* Overview */}
+      <Card className="mb-6 grid gap-6 p-6 md:grid-cols-[200px_1fr]">
+        <div className="flex flex-col items-center justify-center rounded-xl bg-secondary py-6">
+          <Award className="mb-2 h-6 w-6 text-primary" />
+          <span className="text-5xl font-bold text-primary">{fb.grade}</span>
+          <span className="mt-1 text-xs text-muted-foreground">{t("feedback.grade")}</span>
+        </div>
+        <div>
+          <h3 className="mb-2 text-sm font-semibold">{t("feedback.overview")}</h3>
+          <p className="text-sm leading-relaxed text-muted-foreground">{fb.overview}</p>
+        </div>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard icon={Sparkles} title={t("feedback.abilities")} accent="primary">
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={fb.abilityScores} outerRadius="70%">
+                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarAngleAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                <Radar dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.25} />
+              </RadarChart>
+            </ResponsiveContainer>
           </div>
-        </Card>
+        </SectionCard>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          {/* Ability scores radar */}
-          <SectionCard icon={Gauge} title={t("feedback.abilities")} accent="primary">
-            {radarData.length > 0 ? (
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={radarData} outerRadius="70%">
-                    <PolarGrid stroke="hsl(var(--border))" />
-                    <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <Radar dataKey="score" stroke="hsl(var(--primary))"
-                      fill="hsl(var(--primary))" fillOpacity={0.35} />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : <p className="text-sm text-muted-foreground">—</p>}
-            <div className="mt-2 space-y-2">
-              {radarData.map((s) => (
-                <div key={s.name} className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{s.name}</span>
-                  <span className="font-semibold">{s.score}/10</span>
-                </div>
-              ))}
-            </div>
+        <div className="space-y-6">
+          <SectionCard icon={ThumbsUp} title={t("feedback.strengths")} accent="success">
+            <BulletList items={fb.strengths} marker="check" />
           </SectionCard>
-
-          {/* Strengths / weaknesses */}
-          <div className="space-y-6">
-            <SectionCard icon={ThumbsUp} title={t("feedback.strengths")} accent="success">
-              <BulletList items={report.strengths} marker="check" />
-            </SectionCard>
-            <SectionCard icon={ThumbsDown} title={t("feedback.weaknesses")} accent="warning">
-              <BulletList items={report.weaknesses} marker="warn" />
-            </SectionCard>
-          </div>
+          <SectionCard icon={ThumbsDown} title={t("feedback.weaknesses")} accent="warning">
+            <BulletList items={fb.weaknesses} marker="warn" />
+          </SectionCard>
         </div>
 
-        {/* Risk answers */}
-        {report.risk_answers && report.risk_answers.length > 0 && (
-          <div className="mt-6">
-            <SectionCard icon={ShieldAlert} title={t("feedback.risks")} accent="destructive">
-              <BulletList items={report.risk_answers} marker="risk" />
-            </SectionCard>
-          </div>
-        )}
+        <SectionCard icon={AlertTriangle} title={t("feedback.risks")} accent="destructive">
+          <BulletList items={fb.riskAnswers} marker="risk" empty={t("feedback.noRisk")} />
+        </SectionCard>
 
-        {/* Per-question feedback */}
-        {report.question_feedback && report.question_feedback.length > 0 && (
-          <div className="mt-6">
-            <SectionCard icon={MessageSquareText} title={t("feedback.perQuestion")} accent="primary">
-              <Accordion type="single" collapsible className="w-full">
-                {report.question_feedback.map((q, i) => (
-                  <AccordionItem key={i} value={`q-${i}`}>
-                    <AccordionTrigger className="text-left text-sm">{q.question}</AccordionTrigger>
-                    <AccordionContent className="space-y-4">
-                      <div>
-                        <h4 className="mb-2 text-sm font-semibold text-warning">{t("feedback.problems")}</h4>
-                        <BulletList items={q.problems} marker="warn" />
-                      </div>
-                      <div>
-                        <h4 className="mb-2 text-sm font-semibold text-success">{t("feedback.direction")}</h4>
-                        <BulletList items={q.direction} marker="check" />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </SectionCard>
-          </div>
-        )}
+        <SectionCard icon={ClipboardCheck} title={t("feedback.practice")} accent="accent">
+          <BulletList items={fb.practicePlan} marker="check" />
+        </SectionCard>
+      </div>
 
-        {/* Optimized answers */}
-        {report.optimized_answers && report.optimized_answers.length > 0 && (
-          <div className="mt-6">
-            <SectionCard icon={Sparkles} title={t("feedback.optimized")} accent="accent">
-              <div className="space-y-4">
-                {report.optimized_answers.map((o, i) => (
-                  <Card key={i} className="bg-muted/40 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-medium">{o.question}</p>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0"
-                        onClick={() => copyAnswer(o.answer)}>
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-                      {o.answer}
-                    </p>
-                  </Card>
-                ))}
-              </div>
-            </SectionCard>
-          </div>
-        )}
+      {/* Per question */}
+      <SectionCard icon={MessageSquareText} title={t("feedback.perQuestion")} accent="primary">
+        <Accordion type="single" collapsible className="w-full">
+          {fb.questionFeedback.map((q, i) => (
+            <AccordionItem key={i} value={`q${i}`}>
+              <AccordionTrigger className="text-left text-sm">{q.question}</AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-warning">{t("feedback.problems")}</div>
+                  <BulletList items={q.problems} marker="warn" />
+                </div>
+                <div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-success">{t("feedback.direction")}</div>
+                  <BulletList items={q.direction} marker="check" />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </SectionCard>
 
-        {/* Practice plan */}
-        {report.practice_plan && report.practice_plan.length > 0 && (
-          <div className="mt-6">
-            <SectionCard icon={ListTodo} title={t("feedback.practice")} accent="primary">
-              <BulletList items={report.practice_plan} marker="dot" />
-            </SectionCard>
-          </div>
-        )}
-
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          {session && (
-            <Button variant="outline" onClick={() => navigate(`/tasks/${session.task_id}/report`)}>
-              {t("feedback.backToReport")}
+      {/* Optimized answers */}
+      <div className="mt-6 space-y-4">
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          <Sparkles className="h-5 w-5 text-accent" />{t("feedback.optimized")}
+        </h3>
+        {fb.optimizedAnswers.map((o, i) => (
+          <Card key={i} className="p-5">
+            <div className="mb-2 text-sm font-medium">{o.question}</div>
+            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm leading-relaxed text-muted-foreground">
+              {o.answer}
+            </div>
+            <Button variant="ghost" size="sm" className="mt-2" onClick={() => copy(o.answer, i)}>
+              {copied === i ? <Check className="mr-2 h-4 w-4 text-success" /> : <Copy className="mr-2 h-4 w-4" />}
+              {t("feedback.copy")}
             </Button>
-          )}
-          <Button onClick={() => navigate("/dashboard")}>{t("feedback.toDashboard")}</Button>
-        </div>
-      </main>
-    </div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="mt-8 flex justify-center">
+        <Button size="lg" onClick={restart}>
+          <RotateCcw className="mr-2 h-4 w-4" />{t("feedback.newRound")}
+        </Button>
+      </div>
+    </WorkbenchLayout>
   );
 };
 

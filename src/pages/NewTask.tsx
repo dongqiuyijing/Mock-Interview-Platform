@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Loader2, Sparkles, ArrowLeft } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { AppHeader } from "@/components/AppHeader";
+import {
+  Sparkles, FileText, FileUser, Lightbulb, Target, ListChecks,
+  ArrowRight, CircleCheck,
+} from "lucide-react";
+import { WorkbenchLayout } from "@/components/WorkbenchLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,16 +14,20 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   JOB_DIRECTIONS, INTERVIEW_TYPES, DIFFICULTIES, DURATIONS,
   JobDirection, InterviewType, Difficulty, dirKey,
 } from "@/lib/interview";
+import { store, MockTask } from "@/lib/workspaceStore";
+import { generateAnalysis } from "@/lib/mockGenerators";
+
+const SAMPLE_JD = `We are hiring an AI Product Manager to own our LLM-powered assistant. You will define the roadmap, design evaluation metrics for answer quality, partner with engineering on RAG and agent workflows, and balance latency, cost and reliability. Experience shipping AI features to production required.`;
+const SAMPLE_RESUME = `Product Manager with 4 years experience. Shipped a customer-support assistant using retrieval-augmented generation, improving deflection by 28%. Built an eval harness with human + automated scoring. Partnered with ML engineers on prompt iteration and cost optimization.`;
 
 const NewTask = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [jobTitle, setJobTitle] = useState("");
@@ -34,65 +39,59 @@ const NewTask = () => {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const fillSample = () => {
+    setJobTitle("Senior AI Product Manager");
+    setJdText(SAMPLE_JD);
+    setResumeText(SAMPLE_RESUME);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     if (jdText.trim().length < 30 || resumeText.trim().length < 30) {
       toast.error(t("new.error.short"));
       return;
     }
     setSubmitting(true);
-
-    const { data: task, error } = await supabase
-      .from("interview_tasks")
-      .insert({
-        user_id: user.id,
-        job_title: jobTitle || t(dirKey(direction)),
-        job_direction: direction,
-        interview_type: interviewType,
-        difficulty,
-        duration,
-        jd_text: jdText,
-        resume_text: resumeText,
-        status: "created",
-      })
-      .select()
-      .single();
-
-    if (error || !task) {
-      setSubmitting(false);
-      toast.error(t("new.error.create"));
-      return;
-    }
-
-    // Trigger analysis (3 agents) then go to report page.
-    const lang = localStorage.getItem("i18nextLng") ?? "zh-CN";
-    const { error: fnError } = await supabase.functions.invoke("interview-agent", {
-      body: { action: "analyze", taskId: task.id, lang },
-    });
-
-    setSubmitting(false);
-    if (fnError) {
-      toast.error(t("new.error.analyze"));
-      navigate(`/tasks/${task.id}/report`);
-      return;
-    }
-    navigate(`/tasks/${task.id}/report`);
+    const task: MockTask = {
+      jobTitle: jobTitle || t(dirKey(direction)),
+      jobDirection: direction,
+      interviewType,
+      duration,
+      difficulty,
+      jdText,
+      resumeText,
+      createdAt: new Date().toISOString(),
+    };
+    store.clearAll();
+    store.setTask(task);
+    store.setAnalysis(generateAnalysis(task, t));
+    // brief delay for a polished "generating" feel
+    setTimeout(() => navigate("/analysis"), 650);
   };
 
+  const previewItems = [
+    { icon: Target, key: "role" },
+    { icon: FileUser, key: "resume" },
+    { icon: ListChecks, key: "plan" },
+    { icon: Sparkles, key: "feedback" },
+  ];
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader />
-      <main className="container max-w-3xl flex-1 py-10">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t("common.back")}
+    <WorkbenchLayout step="create">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("new.title")}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t("new.subtitle")}</p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={fillSample}>
+          <Lightbulb className="mr-2 h-4 w-4" />
+          {t("new.useSample")}
         </Button>
+      </div>
 
-        <h1 className="text-3xl font-bold tracking-tight">{t("new.title")}</h1>
-        <p className="mt-1 text-muted-foreground">{t("new.subtitle")}</p>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        {/* Left: form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="space-y-5 p-6">
             <div className="space-y-2">
               <Label htmlFor="title">{t("new.jobTitle")}</Label>
@@ -101,15 +100,19 @@ const NewTask = () => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="jd">{t("new.jd")}</Label>
+              <Label htmlFor="jd" className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />{t("new.jd")}
+              </Label>
               <Textarea id="jd" value={jdText} onChange={(e) => setJdText(e.target.value)}
-                placeholder={t("new.jd.ph")} className="min-h-[160px] resize-y" />
+                placeholder={t("new.jd.ph")} className="min-h-[150px] resize-y" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="resume">{t("new.resume")}</Label>
+              <Label htmlFor="resume" className="flex items-center gap-2">
+                <FileUser className="h-4 w-4 text-muted-foreground" />{t("new.resume")}
+              </Label>
               <Textarea id="resume" value={resumeText} onChange={(e) => setResumeText(e.target.value)}
-                placeholder={t("new.resume.ph")} className="min-h-[160px] resize-y" />
+                placeholder={t("new.resume.ph")} className="min-h-[150px] resize-y" />
             </div>
           </Card>
 
@@ -140,52 +143,91 @@ const NewTask = () => {
 
             <div className="space-y-2">
               <Label>{t("new.duration")}</Label>
-              <RadioGroup
-                value={String(duration)}
-                onValueChange={(v) => setDuration(Number(v))}
-                className="flex gap-3"
-              >
+              <div className="flex gap-2">
                 {DURATIONS.map((d) => (
-                  <label key={d} htmlFor={`dur-${d}`}
-                    className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-border p-3 text-sm transition-smooth has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                    <RadioGroupItem id={`dur-${d}`} value={String(d)} />
+                  <button key={d} type="button" onClick={() => setDuration(d)}
+                    className={`flex-1 rounded-md border p-2.5 text-sm font-medium transition-smooth ${
+                      duration === d ? "border-primary bg-primary-soft text-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                    }`}>
                     {t("new.duration.min", { min: d })}
-                  </label>
+                  </button>
                 ))}
-              </RadioGroup>
+              </div>
             </div>
 
             <div className="space-y-2">
               <Label>{t("new.difficulty")}</Label>
-              <RadioGroup
-                value={difficulty}
-                onValueChange={(v) => setDifficulty(v as Difficulty)}
-                className="flex gap-3"
-              >
+              <div className="flex gap-2">
                 {DIFFICULTIES.map((d) => (
-                  <label key={d.value} htmlFor={`diff-${d.value}`}
-                    className="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-border p-3 text-sm transition-smooth has-[:checked]:border-primary has-[:checked]:bg-primary/5">
-                    <RadioGroupItem id={`diff-${d.value}`} value={d.value} />
+                  <button key={d.value} type="button" onClick={() => setDifficulty(d.value)}
+                    className={`flex-1 rounded-md border p-2.5 text-sm font-medium transition-smooth ${
+                      difficulty === d.value ? "border-primary bg-primary-soft text-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                    }`}>
                     {t(d.labelKey)}
-                  </label>
+                  </button>
                 ))}
-              </RadioGroup>
+              </div>
             </div>
           </Card>
 
-          <Button type="submit" size="lg" className="w-full shadow-glow" disabled={submitting}>
+          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
             {submitting ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t("new.submitting")}</>
+              <><Sparkles className="mr-2 h-4 w-4 animate-pulse-soft" />{t("new.submitting")}</>
             ) : (
               <><Sparkles className="mr-2 h-4 w-4" />{t("new.submit")}</>
             )}
           </Button>
-          {submitting && (
-            <p className="text-center text-sm text-muted-foreground">{t("new.submitting.hint")}</p>
-          )}
         </form>
-      </main>
-    </div>
+
+        {/* Right: preparation summary / sample output */}
+        <aside className="space-y-4 lg:sticky lg:top-[150px] lg:self-start">
+          <Card className="p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-accent" />
+              <h3 className="text-sm font-semibold">{t("new.preview.title")}</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">{t("new.preview.desc")}</p>
+            <ul className="mt-4 space-y-3">
+              {previewItems.map((item) => (
+                <li key={item.key} className="flex gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary">
+                    <item.icon className="h-4 w-4 text-secondary-foreground" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">{t(`new.preview.${item.key}.title`)}</div>
+                    <div className="text-xs text-muted-foreground">{t(`new.preview.${item.key}.desc`)}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          <Card className="p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <CircleCheck className="h-4 w-4 text-success" />
+              <h3 className="text-sm font-semibold">{t("new.sample.title")}</h3>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{t("report.matchScore")}</span>
+                <span className="text-lg font-bold text-primary">78</span>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <Badge variant="secondary" className="font-normal">{t("report.match.strong")}</Badge>
+                <Badge variant="outline" className="font-normal">{t("report.match.weak")}</Badge>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                {t("new.sample.note")}
+              </p>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <ArrowRight className="h-3.5 w-3.5" />
+              {t("new.sample.flow")}
+            </div>
+          </Card>
+        </aside>
+      </div>
+    </WorkbenchLayout>
   );
 };
 

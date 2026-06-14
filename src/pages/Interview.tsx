@@ -1,286 +1,216 @@
-import { useEffect, useState, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  Send, Loader2, Bot, User as UserIcon, Flag, Brain,
-  Layers, Activity, Target,
-} from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { AppHeader } from "@/components/AppHeader";
+import { Send, Bot, User, Flag, Target, Layers, Gauge } from "lucide-react";
+import { WorkbenchLayout } from "@/components/WorkbenchLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
-  AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { InterviewMessage, InterviewSession, InterviewTask, dirKey, typeKey, difficultyKey } from "@/lib/interview";
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { store, MockTask, MockMessage } from "@/lib/workspaceStore";
+import { interviewQuestions, generateFeedback } from "@/lib/mockGenerators";
+import { dirKey, typeKey } from "@/lib/interview";
 
 const Interview = () => {
   const { t } = useTranslation();
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const lang = localStorage.getItem("i18nextLng") ?? "zh-CN";
-
-  const [session, setSession] = useState<InterviewSession | null>(null);
-  const [task, setTask] = useState<InterviewTask | null>(null);
-  const [messages, setMessages] = useState<InterviewMessage[]>([]);
-  const [answer, setAnswer] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [thinking, setThinking] = useState(false);
-  const [finishing, setFinishing] = useState(false);
-  const [done, setDone] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const maxQuestions = 5;
-
-  const scrollToBottom = () => {
-    setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }), 50);
-  };
-
-  const askNext = useCallback(async (sessionId: string, userAnswer?: string) => {
-    setThinking(true);
-    const { data, error } = await supabase.functions.invoke("interview-agent", {
-      body: { action: "interview_next", sessionId, answer: userAnswer ?? "", lang },
-    });
-    setThinking(false);
-    if (error) {
-      toast.error(t("interview.error"));
-      return;
-    }
-    if (data?.done) {
-      setDone(true);
-      return;
-    }
-    if (data?.message) {
-      setMessages((prev) => [...prev, data.message as InterviewMessage]);
-      setSession((prev) => prev ? { ...prev, current_stage: data.stage ?? prev.current_stage } : prev);
-      scrollToBottom();
-    }
-  }, [lang, t]);
+  const [task, setTask] = useState<MockTask | null>(null);
+  const [questions, setQuestions] = useState<MockMessage[]>([]);
+  const [messages, setMessages] = useState<MockMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [qIndex, setQIndex] = useState(0); // index of next question to ask
+  const [finishOpen, setFinishOpen] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
-    (async () => {
-      const { data: sess } = await supabase
-        .from("interview_sessions").select("*").eq("id", id).maybeSingle();
-      if (!sess) { setLoading(false); return; }
-      setSession(sess as InterviewSession);
-
-      const { data: taskData } = await supabase
-        .from("interview_tasks").select("*").eq("id", sess.task_id).maybeSingle();
-      setTask(taskData as InterviewTask);
-
-      const { data: msgs } = await supabase
-        .from("interview_messages").select("*").eq("session_id", id)
-        .order("created_at", { ascending: true });
-      const list = (msgs as InterviewMessage[]) ?? [];
-      setMessages(list);
-      setLoading(false);
-
-      if (sess.status === "completed" || sess.status === "awaiting_feedback") {
-        setDone(true);
-      } else if (list.length === 0) {
-        askNext(id);
-      } else {
-        scrollToBottom();
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const handleSend = async () => {
-    if (!answer.trim() || !id || thinking) return;
-    const text = answer.trim();
-    setAnswer("");
-    const optimistic: InterviewMessage = {
-      id: `temp-${Date.now()}`, session_id: id, role: "candidate",
-      content: text, question_type: null, jd_competency: null,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, optimistic]);
-    scrollToBottom();
-    await askNext(id, text);
-  };
-
-  const handleFinish = async () => {
-    if (!id) return;
-    setFinishing(true);
-    const { error } = await supabase.functions.invoke("interview-agent", {
-      body: { action: "finish", sessionId: id, lang },
-    });
-    setFinishing(false);
-    if (error) {
-      toast.error(t("interview.finishError"));
+    const tk = store.getTask();
+    if (!tk) {
+      navigate("/");
       return;
     }
-    navigate(`/sessions/${id}/feedback`);
+    setTask(tk);
+    const qs = interviewQuestions(tk, t);
+    setQuestions(qs);
+    // start with first question
+    const first = [qs[0]];
+    setMessages(first);
+    setQIndex(1);
+    store.setMessages(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, thinking]);
+
+  if (!task) return null;
+
+  const answered = messages.filter((m) => m.role === "candidate").length;
+  const total = questions.length;
+  const lastQuestion = messages.filter((m) => m.role === "interviewer").slice(-1)[0];
+  const isLast = qIndex >= total;
+
+  const send = () => {
+    if (!input.trim() || thinking) return;
+    const answer: MockMessage = { id: `c-${Date.now()}`, role: "candidate", content: input.trim() };
+    const withAnswer = [...messages, answer];
+    setMessages(withAnswer);
+    store.setMessages(withAnswer);
+    setInput("");
+
+    if (qIndex < total) {
+      setThinking(true);
+      setTimeout(() => {
+        const next = questions[qIndex];
+        const updated = [...withAnswer, next];
+        setMessages(updated);
+        store.setMessages(updated);
+        setQIndex((i) => i + 1);
+        setThinking(false);
+      }, 800);
+    }
   };
 
-  const askedCount = messages.filter((m) => m.role === "interviewer").length;
-  const progress = Math.min((askedCount / maxQuestions) * 100, 100);
-  const lastQuestion = [...messages].reverse().find((m) => m.role === "interviewer");
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <AppHeader />
-        <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
+  const finish = () => {
+    const fb = generateFeedback(task, store.getMessages(), t);
+    store.setFeedback(fb);
+    navigate("/feedback");
+  };
 
   return (
-    <div className="flex h-screen flex-col">
-      <AppHeader />
-      <div className="container flex flex-1 gap-6 overflow-hidden py-6">
-        {/* Main chat */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto pr-2">
-            {messages.map((m) => (
-              <div key={m.id}
-                className={`flex gap-3 animate-fade-in ${m.role === "candidate" ? "flex-row-reverse" : ""}`}>
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                  m.role === "interviewer" ? "gradient-primary" : "bg-secondary"}`}>
-                  {m.role === "interviewer"
-                    ? <Bot className="h-5 w-5 text-primary-foreground" />
-                    : <UserIcon className="h-5 w-5 text-secondary-foreground" />}
-                </div>
-                <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                  m.role === "interviewer"
-                    ? "bg-card shadow-sm border border-border"
-                    : "gradient-primary text-primary-foreground"}`}>
-                  {m.role === "interviewer" && m.jd_competency && (
-                    <Badge variant="secondary" className="mb-2 text-xs font-normal">
-                      {m.jd_competency}
-                    </Badge>
-                  )}
-                  <p className="whitespace-pre-wrap">{m.content}</p>
-                </div>
+    <WorkbenchLayout step="interview">
+      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
+        {/* Chat */}
+        <div className="flex h-[calc(100vh-260px)] min-h-[460px] flex-col">
+          <Card className="flex flex-1 flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <div className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">{t("interview.title")}</span>
               </div>
-            ))}
+              <Button variant="outline" size="sm" onClick={() => setFinishOpen(true)}>
+                <Flag className="mr-2 h-4 w-4" />{t("interview.finish")}
+              </Button>
+            </div>
 
-            {thinking && (
-              <div className="flex gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg gradient-primary">
-                  <Bot className="h-5 w-5 text-primary-foreground" />
+            <div ref={scrollRef} className="flex-1 space-y-5 overflow-y-auto p-5">
+              {messages.map((m) => (
+                <div key={m.id} className={`flex gap-3 ${m.role === "candidate" ? "flex-row-reverse" : ""}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                    m.role === "interviewer" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
+                  }`}>
+                    {m.role === "interviewer" ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                  </div>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    m.role === "interviewer" ? "bg-muted" : "bg-primary text-primary-foreground"
+                  }`}>
+                    {m.role === "interviewer" && m.competency && (
+                      <div className="mb-1 text-[11px] font-medium uppercase tracking-wide opacity-70">{m.competency}</div>
+                    )}
+                    {m.content}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-2xl border border-border bg-card px-4 py-3">
-                  <span className="h-2 w-2 animate-pulse-soft rounded-full bg-primary" />
-                  <span className="h-2 w-2 animate-pulse-soft rounded-full bg-primary [animation-delay:0.2s]" />
-                  <span className="h-2 w-2 animate-pulse-soft rounded-full bg-primary [animation-delay:0.4s]" />
+              ))}
+              {thinking && (
+                <div className="flex gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <Bot className="h-4 w-4" />
+                  </div>
+                  <div className="flex items-center gap-1 rounded-2xl bg-muted px-4 py-3">
+                    <span className="h-2 w-2 animate-pulse-soft rounded-full bg-muted-foreground" />
+                    <span className="h-2 w-2 animate-pulse-soft rounded-full bg-muted-foreground [animation-delay:150ms]" />
+                    <span className="h-2 w-2 animate-pulse-soft rounded-full bg-muted-foreground [animation-delay:300ms]" />
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Composer / finish */}
-          <div className="mt-4 shrink-0">
-            {done ? (
-              <Card className="flex flex-col items-center gap-3 p-6 text-center">
-                <Flag className="h-7 w-7 text-primary" />
-                <p className="font-medium">{t("interview.done.title")}</p>
-                <p className="text-sm text-muted-foreground">{t("interview.done.desc")}</p>
-                <Button onClick={handleFinish} disabled={finishing} className="shadow-glow">
-                  {finishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Brain className="mr-2 h-4 w-4" />}
-                  {t("interview.viewFeedback")}
+            <div className="border-t border-border p-4">
+              {isLast && answered >= total ? (
+                <Button className="w-full" size="lg" onClick={() => setFinishOpen(true)}>
+                  <Flag className="mr-2 h-4 w-4" />{t("interview.allDone")}
                 </Button>
-              </Card>
-            ) : (
-              <div className="flex items-end gap-2">
-                <Textarea
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend(); }
-                  }}
-                  placeholder={t("interview.placeholder")}
-                  className="min-h-[60px] max-h-40 resize-none"
-                  disabled={thinking}
-                />
-                <div className="flex flex-col gap-2">
-                  <Button size="icon" onClick={handleSend} disabled={thinking || !answer.trim()}>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <Textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+                    }}
+                    placeholder={t("interview.placeholder")}
+                    className="min-h-[52px] resize-none"
+                  />
+                  <Button onClick={send} disabled={!input.trim() || thinking} size="icon" className="h-[52px] w-[52px] shrink-0">
                     <Send className="h-4 w-4" />
                   </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button size="icon" variant="outline" title={t("interview.finish")}>
-                        <Flag className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t("interview.finishConfirm.title")}</AlertDialogTitle>
-                        <AlertDialogDescription>{t("interview.finishConfirm.desc")}</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleFinish}>{t("interview.finish")}</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
-              </div>
-            )}
-            <p className="mt-1.5 text-center text-xs text-muted-foreground">{t("interview.hint")}</p>
-          </div>
+              )}
+            </div>
+          </Card>
         </div>
 
         {/* Sidebar */}
-        <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto lg:flex">
+        <aside className="space-y-4">
           <Card className="p-5">
             <div className="mb-3 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
+              <Gauge className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold">{t("interview.progress")}</h3>
             </div>
-            <Progress value={progress} className="h-2" />
+            <Progress value={(answered / total) * 100} className="h-2" />
             <p className="mt-2 text-xs text-muted-foreground">
-              {t("interview.questionCount", { count: askedCount, total: maxQuestions })}
+              {t("interview.progressLabel", { answered, total })}
             </p>
+          </Card>
+
+          <Card className="space-y-3 p-5">
+            <SideRow icon={Layers} label={t("interview.stage")} value={lastQuestion?.stage ?? "—"} />
+            <SideRow icon={Target} label={t("interview.competency")} value={lastQuestion?.competency ?? "—"} />
           </Card>
 
           <Card className="p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <Layers className="h-4 w-4 text-accent" />
-              <h3 className="text-sm font-semibold">{t("interview.stage")}</h3>
+            <h3 className="mb-3 text-sm font-semibold">{t("interview.taskInfo")}</h3>
+            <div className="space-y-1.5 text-xs text-muted-foreground">
+              <div className="font-medium text-foreground">{task.jobTitle}</div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <Badge variant="secondary" className="font-normal">{t(dirKey(task.jobDirection))}</Badge>
+                <Badge variant="secondary" className="font-normal">{t(typeKey(task.interviewType))}</Badge>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {session?.current_stage ?? t("interview.stage.warmup")}
-            </p>
           </Card>
-
-          {lastQuestion?.jd_competency && (
-            <Card className="p-5">
-              <div className="mb-3 flex items-center gap-2">
-                <Target className="h-4 w-4 text-warning" />
-                <h3 className="text-sm font-semibold">{t("interview.competency")}</h3>
-              </div>
-              <Badge variant="secondary">{lastQuestion.jd_competency}</Badge>
-            </Card>
-          )}
-
-          {task && (
-            <Card className="p-5">
-              <h3 className="mb-2 text-sm font-semibold">{task.job_title}</h3>
-              <div className="flex flex-wrap gap-1.5">
-                <Badge variant="outline" className="font-normal">{t(dirKey(task.job_direction))}</Badge>
-                <Badge variant="outline" className="font-normal">{t(typeKey(task.interview_type))}</Badge>
-                <Badge variant={task.difficulty === "stress" ? "destructive" : "outline"} className="font-normal">
-                  {t(difficultyKey(task.difficulty))}
-                </Badge>
-              </div>
-            </Card>
-          )}
         </aside>
       </div>
-    </div>
+
+      <Dialog open={finishOpen} onOpenChange={setFinishOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("interview.finishTitle")}</DialogTitle>
+            <DialogDescription>{t("interview.finishDesc")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinishOpen(false)}>{t("interview.continue")}</Button>
+            <Button onClick={finish}>{t("interview.generateFeedback")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </WorkbenchLayout>
   );
 };
+
+const SideRow = ({ icon: Icon, label, value }: { icon: typeof Target; label: string; value: string }) => (
+  <div className="flex items-start gap-3">
+    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="text-sm font-medium">{value}</div>
+    </div>
+  </div>
+);
 
 export default Interview;
