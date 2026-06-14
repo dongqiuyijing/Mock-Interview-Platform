@@ -95,6 +95,7 @@
   "new.direction": "Role direction",
   "new.direction.ph": "e.g. AI Product Manager (decided by the JD)",
   "new.autofill.hint": "Paste a job description above, then let AI fill in the title, role direction and interview settings for you.",
+  "new.autofill.auto": "Settings below are generated automatically from the job description — you can still adjust them.",
   "new.autofill.btn": "Auto-fill from JD",
   "new.autofill.working": "Analyzing...",
   "new.autofill.done": "Configuration filled from the job description",

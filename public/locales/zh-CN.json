@@ -95,6 +95,7 @@
   "new.direction": "岗位方向",
   "new.direction.ph": "如：AI 产品经理（由岗位描述决定）",
   "new.autofill.hint": "在上方粘贴岗位描述，让 AI 自动为你填写岗位名称、岗位方向和面试配置。",
+  "new.autofill.auto": "下方配置已根据岗位描述自动生成，你仍可手动调整。",
   "new.autofill.btn": "根据岗位描述自动生成",
   "new.autofill.working": "正在分析…",
   "new.autofill.done": "已根据岗位描述生成配置",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
@@ -39,6 +39,9 @@ const NewTask = () => {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   const [submitting, setSubmitting] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
+  // Remember the JD we last auto-generated config from, so we only re-run when
+  // the job description actually changes.
+  const lastAutoJd = useRef<string>("");
 
   const fillSample = () => {
     setJobTitle("Senior AI Product Manager");
@@ -47,22 +50,25 @@ const NewTask = () => {
     setDirection("AI Product Manager");
   };
 
-  const handleAutoFill = async () => {
-    if (jdText.trim().length < 30) {
-      toast.error(t("new.autofill.needJd"));
-      return;
-    }
+  // Automatically infer the interview config from the JD (no manual confirm).
+  // Triggered when the JD textarea loses focus, after OCR, or before submit.
+  const autoGenerateConfig = async (jdOverride?: string) => {
+    const jd = (jdOverride ?? jdText).trim();
+    if (jd.length < 30 || jd === lastAutoJd.current || autoFilling) return;
+    lastAutoJd.current = jd;
     setAutoFilling(true);
     try {
-      const cfg = await suggestConfig(jdText, resumeText, i18n.language);
-      if (cfg.job_title) setJobTitle(cfg.job_title);
-      if (cfg.job_direction) setDirection(cfg.job_direction);
+      const cfg = await suggestConfig(jd, resumeText, i18n.language);
+      // Only fill fields the user hasn't manually set, so we never overwrite
+      // their edits silently.
+      setJobTitle((v) => v || cfg.job_title || v);
+      setDirection((v) => v || cfg.job_direction || v);
       if (cfg.interview_type) setInterviewType(cfg.interview_type);
       if (cfg.difficulty) setDifficulty(cfg.difficulty);
       if (cfg.duration) setDuration(cfg.duration);
-      toast.success(t("new.autofill.done"));
-    } catch (err) {
-      toast.error((err as Error).message ?? t("new.autofill.fail"));
+    } catch {
+      // Silent: auto-generation is best-effort; the user can still submit.
+      lastAutoJd.current = "";
     } finally {
       setAutoFilling(false);
     }
@@ -136,8 +142,9 @@ const NewTask = () => {
               </Field>
 
               <Field label={t("new.jd")} icon={FileText}
-                action={<ImageOcrButton onText={(txt) => setJdText((p) => (p ? `${p}\n${txt}` : txt))} />}>
+                action={<ImageOcrButton onText={(txt) => { setJdText((p) => { const next = p ? `${p}\n${txt}` : txt; setTimeout(() => autoGenerateConfig(next), 0); return next; }); }} />}>
                 <Textarea value={jdText} onChange={(e) => setJdText(e.target.value)}
+                  onBlur={autoGenerateConfig}
                   placeholder={t("new.jd.ph")}
                   className="min-h-[150px] resize-y rounded-xl border-border" />
               </Field>
@@ -150,19 +157,15 @@ const NewTask = () => {
               </Field>
             </div>
 
-            <div className="mt-7 flex flex-col gap-2 rounded-2xl border border-dashed border-border bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-start gap-2.5">
-                <Wand2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                <p className="text-xs leading-relaxed text-muted-foreground">{t("new.autofill.hint")}</p>
-              </div>
-              <Button type="button" variant="outline" size="sm" disabled={autoFilling}
-                onClick={handleAutoFill} className="shrink-0 rounded-full">
-                {autoFilling ? (
-                  <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />{t("new.autofill.working")}</>
-                ) : (
-                  <><Wand2 className="mr-2 h-3.5 w-3.5" />{t("new.autofill.btn")}</>
-                )}
-              </Button>
+            <div className="mt-7 flex items-center gap-2.5 rounded-2xl border border-dashed border-border bg-secondary/40 p-4">
+              {autoFilling ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+              ) : (
+                <Wand2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {autoFilling ? t("new.autofill.working") : t("new.autofill.auto")}
+              </p>
             </div>
           </Card>
 
