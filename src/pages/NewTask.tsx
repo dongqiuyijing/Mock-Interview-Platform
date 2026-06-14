@@ -172,7 +172,7 @@ const NewTask = () => {
           </Card>
 
           <Card className="p-8">
-            <div className="label-eyebrow mb-7">{t("new.config.title")}</div>
+            
 
             <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
               <RowField label={t("new.direction")}>
