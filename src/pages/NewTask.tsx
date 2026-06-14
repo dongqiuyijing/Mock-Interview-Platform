@@ -174,7 +174,7 @@ const NewTask = () => {
           <Card className="p-8">
             
 
-            <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
               <RowField label={t("new.duration")}>
                 <div className="flex gap-2">
                   {DURATIONS.map(d => <SegButton key={d} active={duration === d} onClick={() => setDuration(d)}>
@@ -299,7 +299,7 @@ const RowField = ({
 }: {
   label: string;
   children: React.ReactNode;
-}) => <div className="space-y-2.5 py-5 first:pt-0">
+}) => <div className="space-y-2.5">
     <div className="text-sm font-medium">{label}</div>
     {children}
   </div>;
