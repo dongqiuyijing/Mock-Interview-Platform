@@ -1,0 +1,102 @@
+import { ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import {
+  LayoutDashboard, PlusCircle, History, Radar, CalendarCheck,
+} from "lucide-react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { Stepper, StepId } from "@/components/Stepper";
+import { cn } from "@/lib/utils";
+
+const NAV = [
+  { to: "/", key: "nav.dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/new", key: "nav.new", icon: PlusCircle },
+  { to: "/history", key: "nav.history", icon: History },
+  { to: "/skills", key: "nav.skills", icon: Radar },
+  { to: "/plan", key: "nav.plan", icon: CalendarCheck },
+];
+
+interface AppLayoutProps {
+  children: ReactNode;
+  /** Optional flow stepper shown above the content (workbench pages). */
+  step?: StepId;
+  /** Highlight a nav item even if the route isn't an exact match. */
+  activePath?: string;
+}
+
+export const AppLayout = ({ children, step, activePath }: AppLayoutProps) => {
+  const { t } = useTranslation();
+  const location = useLocation();
+  const current = activePath ?? location.pathname;
+
+  const isActive = (item: (typeof NAV)[number]) =>
+    item.exact ? current === item.to : current.startsWith(item.to);
+
+  return (
+    <div className="min-h-screen bg-secondary/40">
+      {/* Sidebar */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-border bg-background lg:flex">
+        <div className="flex h-16 items-center border-b border-border px-6">
+          <Link to="/" className="flex items-baseline gap-2">
+            <span className="display text-lg">{t("app.name")}</span>
+          </Link>
+        </div>
+        <nav className="flex-1 space-y-1 p-4">
+          {NAV.map((item) => (
+            <Link key={item.to} to={item.to}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-smooth",
+                isActive(item)
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+              )}>
+              <item.icon className="h-4 w-4" />
+              {t(item.key)}
+            </Link>
+          ))}
+        </nav>
+        <div className="border-t border-border p-4">
+          <div className="label-eyebrow">{t("app.tagline")}</div>
+        </div>
+      </aside>
+
+      {/* Main column */}
+      <div className="lg:pl-60">
+        {/* Top bar */}
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/85 px-5 backdrop-blur sm:px-8">
+          {/* Mobile brand + nav */}
+          <div className="flex items-center gap-4 lg:hidden">
+            <span className="display text-base">{t("app.name")}</span>
+          </div>
+          <div className="hidden lg:block">
+            {step ? <Stepper current={step} /> : <span className="label-eyebrow">{t("app.tagline")}</span>}
+          </div>
+          <LanguageSwitcher className="h-9 w-[120px] rounded-full border-border text-xs" />
+        </header>
+
+        {/* Mobile nav row */}
+        <div className="flex gap-1 overflow-x-auto border-b border-border bg-background px-4 py-2 lg:hidden">
+          {NAV.map((item) => (
+            <Link key={item.to} to={item.to}
+              className={cn(
+                "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-smooth",
+                isActive(item) ? "bg-foreground text-background" : "text-muted-foreground",
+              )}>
+              <item.icon className="h-3.5 w-3.5" />
+              {t(item.key)}
+            </Link>
+          ))}
+        </div>
+
+        <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-10">
+          {step && (
+            <div className="mb-8 lg:hidden">
+              <Stepper current={step} />
+            </div>
+          )}
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
