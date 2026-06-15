@@ -81,7 +81,7 @@ const Skills = () => {
           </div>
           <div className="h-[360px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={chartData} outerRadius="72%">
+              <RadarChart data={chartData} outerRadius="62%" margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
                 <PolarGrid stroke="hsl(var(--border))" />
                 <PolarAngleAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                 <Radar dataKey="score" stroke="hsl(var(--foreground))" fill="hsl(var(--foreground))" fillOpacity={0.12} />
