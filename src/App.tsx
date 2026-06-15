@@ -10,7 +10,8 @@ const queryClient = new QueryClient();
 
 // Create the router once at module scope so re-renders never rebuild the
 // route tree (which would remount pages and wipe their state).
-const router = createBrowserRouter(routers);
+// import.meta.env.BASE_URL = "/" in dev, "/Mock-Interview-Platform/" on GitHub Pages
+const router = createBrowserRouter(routers, { basename: import.meta.env.BASE_URL });
 
 const App = () => {
   return (
