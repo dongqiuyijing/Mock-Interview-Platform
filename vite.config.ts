@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
-    base: '/',
+    base: process.env.VITE_BASE_PATH ?? '/',
     build: {
       outDir: 'dist',
     }
