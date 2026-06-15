@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { FileUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { recognizeImage } from "@/lib/ocr";
+import { extractFileText } from "@/lib/ocr";
 import { toast } from "sonner";
 
 interface ImageOcrButtonProps {
@@ -10,8 +10,8 @@ interface ImageOcrButtonProps {
   onText: (text: string) => void;
 }
 
-// Recognizes both English and Simplified Chinese from an uploaded image,
-// fully in the browser — no backend, API key or upload required.
+// Extracts text from an uploaded resume/JD file (PDF or image), fully in the
+// browser — no backend or API key required.
 export const ImageOcrButton = ({ onText }: ImageOcrButtonProps) => {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -22,7 +22,8 @@ export const ImageOcrButton = ({ onText }: ImageOcrButtonProps) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!file.type.startsWith("image/") && !isPdf) {
       toast.error(t("ocr.error.type"));
       return;
     }
@@ -30,7 +31,7 @@ export const ImageOcrButton = ({ onText }: ImageOcrButtonProps) => {
     setBusy(true);
     setProgress(0);
     try {
-      const text = await recognizeImage(file, setProgress);
+      const text = await extractFileText(file, setProgress);
       if (!text) {
         toast.error(t("ocr.error.empty"));
         return;
@@ -47,7 +48,7 @@ export const ImageOcrButton = ({ onText }: ImageOcrButtonProps) => {
 
   return (
     <>
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
       <Button type="button" variant="outline" size="sm" disabled={busy}
         onClick={() => inputRef.current?.click()} className="rounded-full">
         {busy ? (
@@ -57,7 +58,7 @@ export const ImageOcrButton = ({ onText }: ImageOcrButtonProps) => {
           </>
         ) : (
           <>
-            <ImagePlus className="mr-2 h-3.5 w-3.5" />
+            <FileUp className="mr-2 h-3.5 w-3.5" />
             {t("ocr.upload")}
           </>
         )}

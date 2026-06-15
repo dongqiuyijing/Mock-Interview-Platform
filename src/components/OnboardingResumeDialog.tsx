@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileUp, FileText, ImagePlus, Loader2, Sparkles } from "lucide-react";
+import { FileUp, FileText, Loader2, Sparkles } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createResume, getOnboarded, setOnboarded } from "@/lib/resumes";
-import { recognizeImage } from "@/lib/ocr";
+import { extractFileText } from "@/lib/ocr";
 import { toast } from "sonner";
 
 interface OnboardingResumeDialogProps {
@@ -45,7 +45,8 @@ export const OnboardingResumeDialog = ({ onDone }: OnboardingResumeDialogProps) 
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
+    const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+    if (!f.type.startsWith("image/") && !isPdf) {
       toast.error(t("ocr.error.type"));
       return;
     }
@@ -54,7 +55,7 @@ export const OnboardingResumeDialog = ({ onDone }: OnboardingResumeDialogProps) 
     setOcrBusy(true);
     setProgress(0);
     try {
-      const text = await recognizeImage(f, setProgress);
+      const text = await extractFileText(f, setProgress);
       if (!text) {
         toast.error(t("ocr.error.empty"));
         return;
@@ -99,12 +100,12 @@ export const OnboardingResumeDialog = ({ onDone }: OnboardingResumeDialogProps) 
           <DialogDescription>{t("onboarding.desc")}</DialogDescription>
         </DialogHeader>
 
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
 
         {!file ? (
           <button type="button" onClick={() => fileRef.current?.click()}
             className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-secondary/40 p-10 text-center transition-smooth hover:border-foreground/40">
-            <ImagePlus className="h-7 w-7 text-muted-foreground" />
+            <FileUp className="h-7 w-7 text-muted-foreground" />
             <span className="text-sm font-medium">{t("onboarding.upload")}</span>
             <span className="text-xs text-muted-foreground">{t("onboarding.uploadHint")}</span>
           </button>

@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileText, ImagePlus, Loader2, Check, PlusCircle } from "lucide-react";
+import { FileText, FileUp, Loader2, Check, PlusCircle } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Resume, listResumes, createResume } from "@/lib/resumes";
-import { recognizeImage } from "@/lib/ocr";
+import { extractFileText } from "@/lib/ocr";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -53,7 +53,8 @@ export const ResumePickerDialog = ({ open, onOpenChange, onSelect }: ResumePicke
     const f = e.target.files?.[0];
     e.target.value = "";
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
+    const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+    if (!f.type.startsWith("image/") && !isPdf) {
       toast.error(t("ocr.error.type"));
       return;
     }
@@ -62,7 +63,7 @@ export const ResumePickerDialog = ({ open, onOpenChange, onSelect }: ResumePicke
     setOcrBusy(true);
     setProgress(0);
     try {
-      const text = await recognizeImage(f, setProgress);
+      const text = await extractFileText(f, setProgress);
       if (!text) {
         toast.error(t("ocr.error.empty"));
         return;
@@ -136,11 +137,11 @@ export const ResumePickerDialog = ({ open, onOpenChange, onSelect }: ResumePicke
         {/* Upload new */}
         <div className="space-y-3 border-t border-border pt-4">
           <div className="label-eyebrow">{t("resumePicker.uploadNew")}</div>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
 
           {!file ? (
             <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} className="w-full rounded-xl">
-              <ImagePlus className="mr-2 h-4 w-4" />{t("resumePicker.chooseImage")}
+              <FileUp className="mr-2 h-4 w-4" />{t("resumePicker.chooseImage")}
             </Button>
           ) : (
             <div className="space-y-3">
