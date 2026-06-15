@@ -132,7 +132,7 @@ const NewTask = () => {
       </div>
 
       {/* Two-column working layout */}
-      <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-12">
+      <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(300px,0.42fr)] xl:gap-12">
         {/* Left: form */}
         <form onSubmit={handleSubmit} className="min-w-0 space-y-8">
           <Card className="p-8">
