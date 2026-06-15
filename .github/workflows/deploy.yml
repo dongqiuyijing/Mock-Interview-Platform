@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main   # 推送到 main 分支时自动部署
+  workflow_dispatch:  # 允许在 GitHub Actions 页面手动触发
 
 permissions:
   contents: read
