@@ -1,9 +1,12 @@
 import Tesseract from "tesseract.js";
 import * as pdfjsLib from "pdfjs-dist";
-// Vite-friendly worker import.
-import PdfWorker from "pdfjs-dist/build/pdf.worker.mjs?worker";
 
-pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker();
+// Point pdfjs at the pre-built worker script bundled with the package.
+// Using import.meta.url keeps it Vite-compatible without the ?worker syntax.
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.mjs",
+  import.meta.url,
+).href;
 
 const OCR_LANGS = "eng+chi_sim";
 
