@@ -20,6 +20,7 @@ import {
 } from "@/lib/interview";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { trackEvent } from "@enter-pro/analytics-sdk";
 
 interface ChatMsg {
   id: string;
@@ -77,6 +78,10 @@ const Interview = () => {
         return;
       }
       setTask(tk as InterviewTask);
+      trackEvent("interview_started", {
+        eventType: "conversion",
+        properties: { interview_type: tk.interview_type, difficulty: tk.difficulty, duration: tk.duration },
+      });
       await askNext(null);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,6 +157,10 @@ const Interview = () => {
     setFinishing(true);
     try {
       await finishInterview(sessionId, i18n.language, () => {});
+      trackEvent("interview_completed", {
+        eventType: "conversion",
+        properties: { questions_answered: answered },
+      });
       navigate(`/feedback?sessionId=${sessionId}`);
     } catch (err) {
       toast.error((err as Error).message);

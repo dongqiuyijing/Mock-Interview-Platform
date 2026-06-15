@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { INTERVIEW_TYPES, DIFFICULTIES, DURATIONS, INTERVIEW_MODES, InterviewType, Difficulty, InterviewMode } from "@/lib/interview";
 import { createTask, analyzeTask, suggestConfig } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { trackEvent } from "@enter-pro/analytics-sdk";
 const SAMPLE_JD = `We are hiring an AI Product Manager to own our LLM-powered assistant. You will define the roadmap, design evaluation metrics for answer quality, partner with engineering on RAG and agent workflows, and balance latency, cost and reliability. Experience shipping AI features to production required.`;
 const SAMPLE_RESUME = `Product Manager with 4 years experience. Shipped a customer-support assistant using retrieval-augmented generation, improving deflection by 28%. Built an eval harness with human + automated scoring. Partnered with ML engineers on prompt iteration and cost optimization.`;
 const NewTask = () => {
@@ -86,6 +87,10 @@ const NewTask = () => {
         mode
       });
       await analyzeTask(taskId, i18n.language);
+      trackEvent("task_created", {
+        eventType: "conversion",
+        properties: { interview_type: interviewType, difficulty, duration, mode },
+      });
       navigate(`/analysis?taskId=${taskId}`);
     } catch (err) {
       toast.error((err as Error).message ?? t("new.error.short"));

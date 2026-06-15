@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { trackEvent } from "@enter-pro/analytics-sdk";
 
 const Auth = () => {
   const { t } = useTranslation();
@@ -32,9 +33,11 @@ const Auth = () => {
     try {
       if (mode === "login") {
         await signIn(email, password);
+        trackEvent("login_completed", { eventType: "custom" });
         toast.success(t("auth.welcomeBack"));
       } else {
         await signUp(email, password, name);
+        trackEvent("signup_completed", { eventType: "conversion" });
         toast.success(t("auth.accountCreated"));
       }
       navigate("/");
