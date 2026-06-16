@@ -111,6 +111,7 @@ export async function getAnalysis(
 export async function createSession(
   taskId: string,
   mode: InterviewMode = "text",
+  lang = "en",
 ): Promise<string> {
   const {
     data: { user },
@@ -119,7 +120,7 @@ export async function createSession(
 
   const { data, error } = await supabase
     .from("interview_sessions")
-    .insert({ task_id: taskId, user_id: user.id, status: "active", mode })
+    .insert({ task_id: taskId, user_id: user.id, status: "active", mode, lang })
     .select("id")
     .single();
   if (error) throw error;

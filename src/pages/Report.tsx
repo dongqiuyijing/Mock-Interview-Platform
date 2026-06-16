@@ -15,7 +15,7 @@ import { InterviewTask, AnalysisReport, dirLabel, typeKey, difficultyKey } from 
 import { toast } from "sonner";
 
 const Report = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const taskId = params.get("taskId");
@@ -60,7 +60,7 @@ const Report = () => {
   const startInterview = async (mode: "text" | "video") => {
     setStarting(true);
     try {
-      const sessionId = await createSession(task.id, mode);
+      const sessionId = await createSession(task.id, mode, i18n.language);
       navigate(`${mode === "video" ? "/video-interview" : "/interview"}?sessionId=${sessionId}`);
     } catch (err) {
       toast.error((err as Error).message);

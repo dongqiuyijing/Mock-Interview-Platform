@@ -3255,6 +3255,7 @@ export type Database = {
           current_stage: string | null
           ended_at: string | null
           id: string
+          lang: string
           mode: string
           overall_score: string | null
           question_count: number
@@ -3267,6 +3268,7 @@ export type Database = {
           current_stage?: string | null
           ended_at?: string | null
           id?: string
+          lang?: string
           mode?: string
           overall_score?: string | null
           question_count?: number
@@ -3279,6 +3281,7 @@ export type Database = {
           current_stage?: string | null
           ended_at?: string | null
           id?: string
+          lang?: string
           mode?: string
           overall_score?: string | null
           question_count?: number

@@ -47,6 +47,8 @@ const VideoInterview = () => {
   const streamRef = useRef<MediaStream | null>(null);
 
   const [task, setTask] = useState<InterviewTask | null>(null);
+  const [sessionLang, setSessionLang] = useState("en");
+  const sessionLangRef = useRef("en");
   const [phase, setPhase] = useState<Phase>("connecting");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [liveQuestion, setLiveQuestion] = useState("");
@@ -71,7 +73,7 @@ const VideoInterview = () => {
   const [finishing, setFinishing] = useState(false);
 
   // ---- speech-to-text ----
-  const speechLang = i18n.language.startsWith("zh") ? "zh-CN" : "en-US";
+  const speechLang = sessionLang.startsWith("zh") ? "zh-CN" : "en-US";
   const { supported: speechSupported, listening, interim, start: startSpeech, stop: stopSpeech } =
     useSpeechRecognition({
       lang: speechLang,
@@ -162,7 +164,7 @@ const VideoInterview = () => {
     setLiveQuestion("");
     try {
       const result = await streamNextQuestion(
-        sessionId, answer, i18n.language,
+        sessionId, answer, sessionLangRef.current,
         (delta) => {
           setPhase("asking");
           setLiveQuestion((p) => p + delta);
@@ -187,7 +189,7 @@ const VideoInterview = () => {
       setLiveQuestion("");
       setPhase("error");
     }
-  }, [sessionId, i18n.language, voiceOn, ttsSupported, speakText]);
+  }, [sessionId, voiceOn, ttsSupported, speakText]);
 
   const retry = useCallback(() => {
     askNext(lastAnswerRef.current);
@@ -200,8 +202,11 @@ const VideoInterview = () => {
     startedRef.current = true;
     (async () => {
       const { data: session } = await supabase
-        .from("interview_sessions").select("task_id").eq("id", sessionId).maybeSingle();
+        .from("interview_sessions").select("task_id, lang").eq("id", sessionId).maybeSingle();
       if (!session) { navigate("/"); return; }
+      const lang = (session as Record<string, unknown>).lang as string ?? "en";
+      sessionLangRef.current = lang;
+      setSessionLang(lang);
       const { data: tk } = await supabase
         .from("interview_tasks").select("*").eq("id", session.task_id).maybeSingle();
       if (!tk) { navigate("/"); return; }
@@ -224,7 +229,7 @@ const VideoInterview = () => {
     if (!sessionId) return;
     setFinishing(true);
     try {
-      await finishInterview(sessionId, i18n.language, () => {});
+      await finishInterview(sessionId, sessionLangRef.current, () => {});
       streamRef.current?.getTracks().forEach((tr) => tr.stop());
       navigate(`/feedback?sessionId=${sessionId}`);
     } catch (err) {

@@ -39,6 +39,7 @@ const Interview = () => {
   const startedRef = useRef(false);
 
   const [task, setTask] = useState<InterviewTask | null>(null);
+  const [sessionLang, setSessionLang] = useState("en");
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [streaming, setStreaming] = useState("");
   const [thinking, setThinking] = useState(false);
@@ -61,13 +62,15 @@ const Interview = () => {
     (async () => {
       const { data: session } = await supabase
         .from("interview_sessions")
-        .select("task_id")
+        .select("task_id, lang")
         .eq("id", sessionId)
         .maybeSingle();
       if (!session) {
         navigate("/");
         return;
       }
+      const lang = (session as Record<string, unknown>).lang as string ?? "en";
+      setSessionLang(lang);
       const { data: tk } = await supabase
         .from("interview_tasks")
         .select("*")
@@ -102,7 +105,7 @@ const Interview = () => {
       const result = await streamNextQuestion(
         sessionId,
         answer,
-        i18n.language,
+        sessionLang,
         (delta) => {
           setThinking(false);
           setStreaming((prev) => prev + delta);
@@ -156,7 +159,7 @@ const Interview = () => {
     if (!sessionId) return;
     setFinishing(true);
     try {
-      await finishInterview(sessionId, i18n.language, () => {});
+      await finishInterview(sessionId, sessionLang, () => {});
       trackEvent("interview_completed", {
         eventType: "conversion",
         properties: { questions_answered: answered },
