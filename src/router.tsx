@@ -1,5 +1,4 @@
 import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NewTask from "./pages/NewTask";
 import Report from "./pages/Report";
@@ -13,11 +12,6 @@ import ResumesPage from "./pages/Resumes";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const routers = [
-  {
-    path: "/auth",
-    name: "auth",
-    element: <Auth />,
-  },
   {
     path: "/",
     name: "dashboard",
