@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Register listener first, then read existing session.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
@@ -34,19 +35,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     supabase.auth.getSession().then(({ data: { session: existing } }) => {
-      if (existing) {
-        setSession(existing);
-        setUser(existing.user);
-        setLoading(false);
-      } else {
-        // Auto sign-in anonymously so the app works without a login page.
-        setTimeout(async () => {
-          const { data } = await supabase.auth.signInAnonymously();
-          setSession(data.session);
-          setUser(data.session?.user ?? null);
-          setLoading(false);
-        }, 0);
-      }
+      setSession(existing);
+      setUser(existing?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

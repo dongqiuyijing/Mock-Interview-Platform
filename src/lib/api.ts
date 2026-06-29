@@ -8,9 +8,8 @@ import {
   InterviewMode,
 } from "@/lib/interview";
 
-// Points to the interview-agent edge function on this project's backend.
-// supabase.supabaseUrl is the project's Supabase base URL (public readonly property).
-const FN_URL = `${supabase.supabaseUrl}/functions/v1/interview-agent`;
+const FN_URL =
+  "https://spb-t4nv7v8lc2v8ud5v.supabase.opentrust.net/functions/v1/interview-agent";
 
 export interface NewTaskInput {
   jobTitle: string;
