@@ -1,348 +1,671 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const AI_API_TOKEN = Deno.env.get("AI_API_TOKEN_0f04393eb471")!;
-const API_BASE = "https://api.enter.pro/code/api/v1/ai";
-const MODEL = "deepseek/deepseek-v4-pro";
+const AGENT_BASE =
+  "https://api.enter.pro/code/api/v1/agents/cf516df3-5a89-41a1-9a58-d1796ce1a7ad";
 
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-const enc = new TextEncoder();
 
-function jsonRes(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
+async function runAgent(prompt: string): Promise<string> {
+  let text = "";
+  await streamAgent(prompt, (full) => {
+    text = full;
   });
+  return text.trim();
 }
 
-type Msg = { role: string; content: string };
+async function streamAgent(
+  prompt: string,
+  onText: (full: string) => void,
+): Promise<string> {
+  const apiKey = Deno.env.get("AGENT_API_KEY");
+  if (!apiKey) throw new Error("AGENT_API_KEY not configured");
 
-async function llmChat(messages: Msg[], jsonMode = false): Promise<string> {
-  const res = await fetch(`${API_BASE}/chat/completions`, {
+  const tr = await fetch(`${AGENT_BASE}/threads`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${AI_API_TOKEN}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
-    }),
   });
-  if (!res.ok) throw new Error(`LLM error ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  return (data.choices?.[0]?.message?.content as string) ?? "";
-}
+  if (!tr.ok) throw new Error(`thread create failed: ${await tr.text()}`);
+  const threadJson = await tr.json();
+  const threadId = threadJson.thread_id ?? threadJson.threadId ?? threadJson.id;
 
-async function* llmStream(messages: Msg[]): AsyncGenerator<string> {
-  const res = await fetch(`${API_BASE}/chat/completions`, {
+  const runBody = {
+    threadId,
+    runId: crypto.randomUUID(),
+    messages: [{ id: crypto.randomUUID(), role: "user", content: prompt }],
+    tools: [],
+    context: [],
+    state: {},
+    forwardedProps: {},
+  };
+  const rr = await fetch(`${AGENT_BASE}/run`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${AI_API_TOKEN}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      Accept: "text/event-stream",
     },
-    body: JSON.stringify({ model: MODEL, messages, stream: true }),
+    body: JSON.stringify(runBody),
   });
-  if (!res.ok) throw new Error(`LLM error ${res.status}: ${await res.text()}`);
-  const reader = res.body!.getReader();
-  const dec = new TextDecoder();
-  let buf = "";
-  for (;;) {
+  if (!rr.ok || !rr.body) throw new Error(`agent run failed: ${await rr.text()}`);
+
+  const reader = rr.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+
+  const handleEvent = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === "[DONE]") return;
+    let evt: any;
+    try {
+      evt = JSON.parse(trimmed);
+    } catch {
+      return;
+    }
+    const type = (evt.type ?? evt.event ?? "").toString().toUpperCase();
+    if (typeof evt.delta === "string") {
+      text += evt.delta;
+      onText(text);
+      return;
+    }
+    if (evt.delta && typeof evt.delta.content === "string") {
+      text += evt.delta.content;
+      onText(text);
+      return;
+    }
+    if (type.includes("TEXT_MESSAGE") && typeof evt.content === "string") {
+      text += evt.content;
+      onText(text);
+      return;
+    }
+    if (
+      (type.includes("MESSAGES_SNAPSHOT") || type.includes("STATE_SNAPSHOT")) &&
+      Array.isArray(evt.messages)
+    ) {
+      const last = [...evt.messages]
+        .reverse()
+        .find((m: any) => m.role === "assistant" && m.content);
+      if (last && !text) {
+        text =
+          typeof last.content === "string"
+            ? last.content
+            : JSON.stringify(last.content);
+        onText(text);
+      }
+    }
+  };
+
+  while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    buf += dec.decode(value, { stream: true });
-    const lines = buf.split("\n");
-    buf = lines.pop() ?? "";
-    for (const line of lines) {
-      const t = line.trim();
-      if (!t.startsWith("data:")) continue;
-      const d = t.slice(5).trim();
-      if (d === "[DONE]") return;
-      try {
-        const delta = JSON.parse(d)?.choices?.[0]?.delta?.content;
-        if (delta) yield delta;
-      } catch { /* ignore */ }
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n");
+    buffer = parts.pop() ?? "";
+    for (const line of parts) {
+      const l = line.trim();
+      if (l.startsWith("data:")) handleEvent(l.slice(5));
+      else if (l.startsWith("{")) handleEvent(l);
     }
   }
-}
-
-function lang(code: string) {
-  return code.startsWith("zh") ? "Chinese" : "English";
-}
-
-// ---- suggest_config ----
-async function suggestConfig(body: Record<string, unknown>) {
-  const { jdText, resumeText, lang: l } = body as { jdText: string; resumeText: string; lang: string };
-  const content = await llmChat([
-    { role: "system", content: "You are an expert interview coach. Return valid JSON only." },
-    {
-      role: "user",
-      content: `Analyze the JD and resume, suggest an optimal mock-interview config.
-
-JD:
-${jdText}
-
-Resume:
-${resumeText}
-
-Return JSON in ${lang(l)}:
-{
-  "job_title": "exact title from JD",
-  "job_direction": "ai_pm | ai_engineer | prompt_engineer | ai_gtm | or free text",
-  "interview_type": "product | technical | business | hr | founder",
-  "difficulty": "normal | stress",
-  "duration": 15 or 30
-}`,
-    },
-  ], true);
-  return jsonRes({ config: JSON.parse(content) });
-}
-
-// ---- analyze ----
-async function analyze(body: Record<string, unknown>, userId: string, sb: ReturnType<typeof createClient>) {
-  const { taskId, lang: l } = body as { taskId: string; lang: string };
-  const { data: task } = await sb.from("interview_tasks").select("*").eq("id", taskId).eq("user_id", userId).maybeSingle();
-  if (!task) return jsonRes({ error: "Task not found" }, 404);
-
-  const content = await llmChat([
-    { role: "system", content: "You are an expert AI-industry interview coach. Return only valid JSON." },
-    {
-      role: "user",
-      content: `Analyze this JD and resume for a ${task.interview_type} mock interview (${task.difficulty}, ${task.duration} min).
-
-JD:
-${task.jd_text}
-
-Resume:
-${task.resume_text}
-
-Return in ${lang(l)}:
-{
-  "jd_analysis": {
-    "positioning": "...",
-    "core_responsibilities": ["..."],
-    "must_have": ["..."],
-    "nice_to_have": ["..."],
-    "ai_focus_points": ["..."],
-    "implicit_requirements": ["..."],
-    "interview_focus": ["..."],
-    "competency_weights": [{"name":"...","weight":30}]
-  },
-  "resume_analysis": {
-    "selling_points": ["..."],
-    "matched_experience": ["..."],
-    "gaps": ["..."],
-    "risks": ["..."],
-    "probe_points": ["..."],
-    "evidence_to_prepare": ["..."]
-  },
-  "match_score": 75,
-  "strong_matches": ["..."],
-  "weak_matches": ["..."],
-  "risk_points": ["..."],
-  "interview_plan": {
-    "advice": ["..."],
-    "plan": [{"stage":"Warm-up","minutes":5,"focus":"..."}]
-  }
-}`,
-    },
-  ], true);
-
-  const report = JSON.parse(content);
-  const { data: saved } = await sb.from("analysis_reports").insert({
-    task_id: taskId,
-    user_id: userId,
-    jd_analysis: report.jd_analysis,
-    resume_analysis: report.resume_analysis,
-    match_score: report.match_score,
-    strong_matches: report.strong_matches,
-    weak_matches: report.weak_matches,
-    risk_points: report.risk_points,
-    interview_plan: report.interview_plan,
-  }).select("*").single();
-  await sb.from("interview_tasks").update({ status: "analyzed" }).eq("id", taskId);
-  return jsonRes({ report: saved });
-}
-
-// ---- interview_next (SSE) ----
-async function interviewNext(body: Record<string, unknown>, userId: string, sb: ReturnType<typeof createClient>) {
-  const { sessionId, answer, lang: l } = body as { sessionId: string; answer: string | null; lang: string };
-
-  const { data: session } = await sb
-    .from("interview_sessions")
-    .select("*, interview_tasks(job_title, interview_type, difficulty, duration, jd_text)")
-    .eq("id", sessionId).eq("user_id", userId).maybeSingle();
-  if (!session) return jsonRes({ error: "Session not found" }, 404);
-
-  const task = (session as Record<string, unknown>).interview_tasks as Record<string, unknown>;
-  const duration = (task.duration as number) ?? 30;
-  const maxQ = duration <= 15 ? 5 : 8;
-  const qCount = (session.question_count as number) ?? 0;
-
-  if (qCount >= maxQ) return jsonRes({ done: true, capped: true });
-
-  const { data: msgs } = await sb
-    .from("interview_messages").select("*")
-    .eq("session_id", sessionId).order("created_at", { ascending: true });
-
-  const history: Msg[] = (msgs ?? []).map((m: Record<string, unknown>) => ({
-    role: m.role === "interviewer" ? "assistant" : "user",
-    content: m.content as string,
-  }));
-
-  if (answer && answer.trim()) {
-    await sb.from("interview_messages").insert({
-      session_id: sessionId, user_id: userId, role: "user", content: answer.trim(),
-    });
-    history.push({ role: "user", content: answer.trim() });
+  if (buffer.trim()) {
+    const l = buffer.trim();
+    if (l.startsWith("data:")) handleEvent(l.slice(5));
+    else if (l.startsWith("{")) handleEvent(l);
   }
 
-  const isDone = qCount + 1 >= maxQ;
-  const stage = qCount === 0 ? "warm_up" : isDone ? "wrap_up" : "core_competency";
+  return text.trim();
+}
 
-  const system = `You are a professional AI-industry interviewer. Role: ${task.job_title}, type: ${task.interview_type}.
-Stage: ${stage} — question ${qCount + 1} of ${maxQ}.
-Difficulty: ${task.difficulty === "stress" ? "high-pressure stress interview" : "professional standard interview"}.
-JD context: ${String(task.jd_text).slice(0, 600)}
-Ask ONE focused question in ${lang(l)}. No preamble. Just the question.${isDone ? " Make it a wrap-up / reflective question." : ""}`;
+function extractStringField(s: string, field: string): string {
+  const key = `"${field}"`;
+  const ki = s.indexOf(key);
+  if (ki === -1) return "";
+  let i = ki + key.length;
+  while (i < s.length && s[i] !== ":") i++;
+  i++;
+  while (i < s.length && /\s/.test(s[i])) i++;
+  if (s[i] !== '"') return "";
+  i++;
+  let out = "";
+  const NL = String.fromCharCode(10);
+  const TB = String.fromCharCode(9);
+  const CR = String.fromCharCode(13);
+  while (i < s.length) {
+    const c = s[i];
+    if (c === "\\") {
+      const next = s[i + 1];
+      if (next === undefined) break;
+      if (next === "n") out += NL;
+      else if (next === "t") out += TB;
+      else if (next === "r") out += CR;
+      else out += next;
+      i += 2;
+      continue;
+    }
+    if (c === '"') break;
+    out += c;
+    i++;
+  }
+  return out;
+}
 
-  const readable = new ReadableStream({
-    async start(ctrl) {
-      let content = "";
+function extractJson(s: string): any {
+  if (!s) throw new Error("empty agent response");
+  let t = s.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) t = fence[1].trim();
+  const start = t.indexOf("{");
+  const end = t.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    t = t.slice(start, end + 1);
+  }
+  return JSON.parse(t);
+}
+
+const DIRECTION_LABELS: Record<string, string> = {
+  ai_pm: "AI Product Manager",
+  ai_engineer: "AI Application Engineer",
+  prompt_engineer: "Prompt Engineer",
+  ai_gtm: "AI GTM / Solution Consultant",
+};
+
+function langNote(lang: string) {
+  return lang === "en"
+    ? "Respond in English."
+    : "Respond in Simplified Chinese.";
+}
+
+function jdAnalystPrompt(task: any, lang: string) {
+  return `You are an AI-industry job-description analyst. Analyze the JD and judge what the role truly requires. Pay special attention to AI-industry signals: RAG, Agent, LLM, Eval, AI product delivery, cost, latency, safety, compliance, commercialization.
+Target role: ${DIRECTION_LABELS[task.job_direction] ?? task.job_direction}. Interview type: ${task.interview_type}.
+${langNote(lang)}
+Return ONLY valid JSON with this exact shape:
+{
+  "positioning": "string",
+  "core_responsibilities": ["string"],
+  "must_have": ["string"],
+  "nice_to_have": ["string"],
+  "ai_focus_points": ["string"],
+  "implicit_requirements": ["string"],
+  "interview_focus": ["string"],
+  "competency_weights": [{"name":"string","weight":number}]
+}
+JD:
+"""${task.jd_text}"""`;
+}
+
+function resumeAnalystPrompt(task: any, lang: string) {
+  return `You are an AI-industry resume analyst. Analyze the candidate resume against the target JD. Judge strictly based on resume evidence. Point out which projects are most worth deep-diving and what the interviewer is likely to probe.
+${langNote(lang)}
+Return ONLY valid JSON with this exact shape:
+{
+  "selling_points": ["string"],
+  "matched_experience": ["string"],
+  "gaps": ["string"],
+  "risks": ["string"],
+  "probe_points": ["string"],
+  "evidence_to_prepare": ["string"]
+}
+JD:
+"""${task.jd_text}"""
+Resume:
+"""${task.resume_text}"""`;
+}
+
+function suggestConfigPrompt(jd: string, resume: string, lang: string) {
+  return `You are an AI-industry recruiting assistant. Read the job description (and resume if provided) and infer the best mock-interview configuration.
+${langNote(lang)}
+Rules:
+- "job_title": the concrete role title from the JD (e.g. "Senior AI Product Manager"). Keep it short.
+- "job_direction": a SHORT free-text role direction/domain decided by the JD content (e.g. "AI Product Manager", "LLM Application Engineer", "AI Solutions Consultant"). Do NOT use fixed enums — describe the actual direction. ${lang === "en" ? "In English." : "In Simplified Chinese."}
+- "interview_type": pick exactly ONE of: product | technical | business | hr | founder (which interview best fits this role).
+- "difficulty": "normal" or "stress".
+- "duration": 15 or 30 (minutes).
+Return ONLY valid JSON with this exact shape:
+{
+  "job_title": "string",
+  "job_direction": "string",
+  "interview_type": "product|technical|business|hr|founder",
+  "difficulty": "normal|stress",
+  "duration": 15
+}
+JD:
+"""${jd}"""
+Resume:
+"""${resume || "(none)"}"""`;
+}
+
+function matchScorerPrompt(task: any, lang: string) {  return `You are an AI-industry JD-resume match evaluator. Compare the JD and resume, produce a match score and structured assessment.
+${langNote(lang)}
+Return ONLY valid JSON with this exact shape:
+{
+  "match_score": number,
+  "strong_matches": ["string"],
+  "weak_matches": ["string"],
+  "risk_points": ["string"],
+  "preparation_advice": ["string"],
+  "interview_plan": [{"stage":"string","minutes":number,"focus":"string"}]
+}
+Total interview duration: ${task.duration} minutes.
+JD:
+"""${task.jd_text}"""
+Resume:
+"""${task.resume_text}"""`;
+}
+
+function interviewerPrompt(
+  task: any,
+  analysis: any,
+  history: any[],
+  isStress: boolean,
+  questionCount: number,
+  maxQuestions: number,
+  lang: string,
+) {
+  const transcript = history
+    .map(
+      (m) =>
+        `${m.role === "interviewer" ? "INTERVIEWER" : "CANDIDATE"}: ${m.content}`,
+    )
+    .join("\n");
+  return `You are an AI-industry mock interviewer for the role: ${DIRECTION_LABELS[task.job_direction] ?? task.job_direction} (${task.interview_type} interview). ${isStress ? "Use a STRESS interview style: be demanding, challenge weak answers firmly." : "Use a normal professional style."}
+Conduct the interview based on the JD, resume and match report. Ask ONE question at a time. After the candidate answers, decide whether to follow up: if the answer is too vague, probe for specifics, data, evaluation methods and the candidate real contribution; if the answer is strong, raise difficulty. Questions MUST be tailored to this JD, not generic.
+This is question ${questionCount + 1} of about ${maxQuestions}. ${questionCount + 1 >= maxQuestions ? "This should be the FINAL question, then set done=true after they answer." : ""}
+${langNote(lang)}
+Return ONLY valid JSON. Put the "question" field FIRST:
+{
+  "question": "string",
+  "stage": "string",
+  "question_type": "string",
+  "jd_competency": "string",
+  "done": boolean
+}
+JD:
+"""${task.jd_text}"""
+Resume:
+"""${task.resume_text}"""
+Match report (JSON): ${JSON.stringify(analysis)}
+Conversation so far:
+${transcript || "(none yet - produce the opening question)"}`;
+}
+
+function coachPrompt(task: any, analysis: any, history: any[], lang: string, mode = "text") {
+  const transcript = history
+    .map(
+      (m) =>
+        `${m.role === "interviewer" ? "INTERVIEWER" : "CANDIDATE"}: ${m.content}`,
+    )
+    .join("\n");
+  const videoNote =
+    mode === "video"
+      ? `This was a VIDEO CALL interview. Score these 7 ability dimensions exactly (0-100), using these names: "Answer structure", "Key details", "Business judgment", "AI technical understanding", "Communication clarity", "Response speed", "Composure under pressure". Base the assessment on the transcript content.`
+      : `Score 5-7 ability dimensions relevant to the role (0-100).`;
+  return `You are an AI-industry interview coach. Based on the full interview transcript, generate a debrief report. Feedback must be specific, evidence-based, and include directly usable optimized answers.
+Role: ${DIRECTION_LABELS[task.job_direction] ?? task.job_direction}.
+${videoNote}
+${langNote(lang)}
+Return ONLY valid JSON with this exact shape. Put "summary" with "overview" readable first:
+{
+  "summary": {"grade":"string","overview":"string"},
+  "ability_scores": [{"name":"string","score":number}],
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "risk_answers": ["string"],
+  "question_feedback": [{"question":"string","problems":["string"],"direction":["string"]}],
+  "optimized_answers": [{"question":"string","answer":"string"}],
+  "practice_plan": ["string"]
+}
+JD:
+"""${task.jd_text}"""
+Match report: ${JSON.stringify(analysis)}
+Full transcript:
+${transcript}`;
+}
+
+function sseResponse(
+  producer: (send: (obj: any) => void) => Promise<void>,
+): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (obj: any) =>
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
       try {
-        for await (const delta of llmStream([{ role: "system", content: system }, ...history])) {
-          content += delta;
-          ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ type: "delta", text: delta })}\n\n`));
-        }
-        const { data: savedMsg } = await sb.from("interview_messages").insert({
-          session_id: sessionId, user_id: userId,
-          role: "interviewer", content, question_type: stage, jd_competency: stage,
-        }).select("*").single();
-        await sb.from("interview_sessions").update({
-          question_count: qCount + 1, current_stage: stage,
-        }).eq("id", sessionId);
-        ctrl.enqueue(enc.encode(
-          `data: ${JSON.stringify({ type: "done", message: savedMsg, stage, done: isDone })}\n\n`
-        ));
+        await producer(send);
       } catch (e) {
-        ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ type: "error", error: String(e) })}\n\n`));
+        send({ type: "error", error: (e as Error).message ?? "error" });
+      } finally {
+        controller.close();
       }
-      ctrl.close();
     },
   });
-
-  return new Response(readable, {
-    headers: { ...CORS, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+  return new Response(stream, {
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
   });
 }
 
-// ---- finish ----
-async function finish(body: Record<string, unknown>, userId: string, sb: ReturnType<typeof createClient>) {
-  const { sessionId, lang: l } = body as { sessionId: string; lang: string };
-
-  const { data: session } = await sb
-    .from("interview_sessions")
-    .select("*, interview_tasks(job_title, interview_type, difficulty)")
-    .eq("id", sessionId).eq("user_id", userId).maybeSingle();
-  if (!session) return jsonRes({ error: "Session not found" }, 404);
-
-  const { data: msgs } = await sb.from("interview_messages").select("*")
-    .eq("session_id", sessionId).order("created_at", { ascending: true });
-
-  const task = (session as Record<string, unknown>).interview_tasks as Record<string, unknown>;
-  const conversation = (msgs ?? [])
-    .map((m: Record<string, unknown>) =>
-      `${m.role === "interviewer" ? "Interviewer" : "Candidate"}: ${m.content}`)
-    .join("\n\n");
-
-  const content = await llmChat([
-    { role: "system", content: "You are an expert interview evaluator. Return only valid JSON." },
-    {
-      role: "user",
-      content: `Evaluate this ${task.interview_type} interview for the role: ${task.job_title} (${task.difficulty}).
-
-Conversation:
-${conversation}
-
-Return comprehensive feedback in ${lang(l)}:
-{
-  "summary": {
-    "grade": "A | B+ | B | C+ | C | D",
-    "overview": "2-3 sentence overall assessment"
-  },
-  "ability_scores": [
-    {"name": "Communication", "score": 75},
-    {"name": "Product Thinking", "score": 80},
-    {"name": "Technical Understanding", "score": 70},
-    {"name": "Business Acumen", "score": 65},
-    {"name": "AI Knowledge", "score": 85},
-    {"name": "Problem Solving", "score": 72},
-    {"name": "Leadership", "score": 68},
-    {"name": "Execution", "score": 78}
-  ],
-  "strengths": ["strength1", "strength2", "strength3"],
-  "weaknesses": ["weakness1", "weakness2"],
-  "risk_answers": ["risky answer description"],
-  "question_feedback": [
-    {"question": "...", "problems": ["..."], "direction": ["..."]}
-  ],
-  "optimized_answers": [
-    {"question": "...", "answer": "ideal answer example"}
-  ],
-  "practice_plan": ["tip1", "tip2", "tip3"]
-}`,
-    },
-  ], true);
-
-  const report = JSON.parse(content);
-  const { data: saved } = await sb.from("feedback_reports").insert({
-    session_id: sessionId, user_id: userId,
-    summary: report.summary,
-    ability_scores: report.ability_scores,
-    strengths: report.strengths,
-    weaknesses: report.weaknesses,
-    risk_answers: report.risk_answers,
-    question_feedback: report.question_feedback,
-    optimized_answers: report.optimized_answers,
-    practice_plan: report.practice_plan,
-  }).select("*").single();
-
-  await sb.from("interview_sessions").update({
-    status: "completed",
-    ended_at: new Date().toISOString(),
-    overall_score: report.summary?.grade ?? null,
-  }).eq("id", sessionId);
-
-  return jsonRes({ report: saved });
-}
-
-// ---- Main ----
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!token) return jsonRes({ error: "Unauthorized" }, 401);
-
-  const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-  const { data: { user }, error: authErr } = await sb.auth.getUser(token);
-  if (authErr || !user) return jsonRes({ error: "Unauthorized" }, 401);
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
-    const body = await req.json() as Record<string, unknown>;
-    switch (body.action) {
-      case "suggest_config":  return suggestConfig(body);
-      case "analyze":         return analyze(body, user.id, sb);
-      case "interview_next":  return interviewNext(body, user.id, sb);
-      case "finish":          return finish(body, user.id, sb);
-      default:                return jsonRes({ error: `Unknown action: ${body.action}` }, 400);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: {
+          headers: { Authorization: req.headers.get("Authorization")! },
+        },
+      },
+    );
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+    if (userErr || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+
+    const body = await req.json();
+    const { action, lang = "zh-CN" } = body;
+
+    if (action === "suggest_config") {
+      const { jdText = "", resumeText = "" } = body;
+      if (!jdText.trim()) throw new Error("jd text required");
+      const raw = await runAgent(suggestConfigPrompt(jdText, resumeText, lang));
+      const cfg = extractJson(raw);
+      const allowedTypes = ["product", "technical", "business", "hr", "founder"];
+      const config = {
+        job_title: typeof cfg.job_title === "string" ? cfg.job_title.trim() : "",
+        job_direction:
+          typeof cfg.job_direction === "string" ? cfg.job_direction.trim() : "",
+        interview_type: allowedTypes.includes(cfg.interview_type)
+          ? cfg.interview_type
+          : "product",
+        difficulty: cfg.difficulty === "stress" ? "stress" : "normal",
+        duration: cfg.duration === 15 ? 15 : 30,
+      };
+      return new Response(JSON.stringify({ config }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "analyze") {
+      const { taskId } = body;
+      const { data: task, error: te } = await supabase
+        .from("interview_tasks")
+        .select("*")
+        .eq("id", taskId)
+        .single();
+      if (te || !task) throw new Error("task not found");
+
+      const [jdRaw, resumeRaw, matchRaw] = await Promise.all([
+        runAgent(jdAnalystPrompt(task, lang)),
+        runAgent(resumeAnalystPrompt(task, lang)),
+        runAgent(matchScorerPrompt(task, lang)),
+      ]);
+
+      const jd = extractJson(jdRaw);
+      const resume = extractJson(resumeRaw);
+      const match = extractJson(matchRaw);
+
+      const { data: report, error: re } = await supabase
+        .from("analysis_reports")
+        .insert({
+          task_id: taskId,
+          user_id: user.id,
+          jd_analysis: jd,
+          resume_analysis: resume,
+          match_score: match.match_score ?? null,
+          strong_matches: match.strong_matches ?? [],
+          weak_matches: match.weak_matches ?? [],
+          risk_points: match.risk_points ?? [],
+          interview_plan: {
+            advice: match.preparation_advice ?? [],
+            plan: match.interview_plan ?? [],
+          },
+        })
+        .select()
+        .single();
+      if (re) throw re;
+
+      await supabase
+        .from("interview_tasks")
+        .update({ status: "analyzed", updated_at: new Date().toISOString() })
+        .eq("id", taskId);
+
+      return new Response(JSON.stringify({ report }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "interview_next") {
+      const { sessionId, answer } = body;
+      const { data: session, error: se } = await supabase
+        .from("interview_sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .single();
+      if (se || !session) throw new Error("session not found");
+
+      const { data: task } = await supabase
+        .from("interview_tasks")
+        .select("*")
+        .eq("id", session.task_id)
+        .single();
+      const { data: analysis } = await supabase
+        .from("analysis_reports")
+        .select("*")
+        .eq("task_id", session.task_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (answer && answer.trim()) {
+        await supabase.from("interview_messages").insert({
+          session_id: sessionId,
+          user_id: user.id,
+          role: "candidate",
+          content: answer,
+        });
+      }
+
+      const { data: history } = await supabase
+        .from("interview_messages")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: true });
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .maybeSingle();
+      const isPaid = profile?.plan === "paid";
+      const maxQuestions = isPaid ? (task.duration >= 30 ? 8 : 5) : 5;
+
+      const askedCount = (history ?? []).filter(
+        (m) => m.role === "interviewer",
+      ).length;
+
+      if (askedCount >= maxQuestions) {
+        await supabase
+          .from("interview_sessions")
+          .update({ status: "awaiting_feedback" })
+          .eq("id", sessionId);
+        return new Response(JSON.stringify({ done: true, capped: !isPaid }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return sseResponse(async (send) => {
+        let lastSent = "";
+        const raw = await streamAgent(
+          interviewerPrompt(
+            task,
+            analysis ?? {},
+            history ?? [],
+            task.difficulty === "stress",
+            askedCount,
+            maxQuestions,
+            lang,
+          ),
+          (full) => {
+            const q = extractStringField(full, "question");
+            if (q.length > lastSent.length) {
+              send({ type: "delta", text: q.slice(lastSent.length) });
+              lastSent = q;
+            }
+          },
+        );
+
+        const q = extractJson(raw);
+
+        const { data: msg } = await supabase
+          .from("interview_messages")
+          .insert({
+            session_id: sessionId,
+            user_id: user.id,
+            role: "interviewer",
+            content: q.question,
+            question_type: q.question_type ?? null,
+            jd_competency: q.jd_competency ?? null,
+          })
+          .select()
+          .single();
+
+        await supabase
+          .from("interview_sessions")
+          .update({
+            current_stage: q.stage ?? null,
+            question_count: askedCount + 1,
+            status: "active",
+          })
+          .eq("id", sessionId);
+
+        send({
+          type: "done",
+          message: msg,
+          stage: q.stage ?? null,
+          done: !!q.done,
+        });
+      });
+    }
+
+    if (action === "finish") {
+      const { sessionId } = body;
+      const { data: session } = await supabase
+        .from("interview_sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .single();
+      if (!session) throw new Error("session not found");
+
+      const { data: existing } = await supabase
+        .from("feedback_reports")
+        .select("*")
+        .eq("session_id", sessionId)
+        .maybeSingle();
+      if (existing) {
+        return new Response(JSON.stringify({ report: existing }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: task } = await supabase
+        .from("interview_tasks")
+        .select("*")
+        .eq("id", session.task_id)
+        .single();
+      const { data: analysis } = await supabase
+        .from("analysis_reports")
+        .select("*")
+        .eq("task_id", session.task_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const { data: history } = await supabase
+        .from("interview_messages")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: true });
+
+      return sseResponse(async (send) => {
+        let lastSent = "";
+        const raw = await streamAgent(
+          coachPrompt(task, analysis ?? {}, history ?? [], lang, session.mode ?? "text"),
+          (full) => {
+            const ov = extractStringField(full, "overview");
+            if (ov.length > lastSent.length) {
+              send({ type: "delta", text: ov.slice(lastSent.length) });
+              lastSent = ov;
+            }
+          },
+        );
+
+        const fb = extractJson(raw);
+
+        const { data: report, error: fe } = await supabase
+          .from("feedback_reports")
+          .insert({
+            session_id: sessionId,
+            user_id: user.id,
+            summary: fb.summary ?? {},
+            ability_scores: fb.ability_scores ?? [],
+            strengths: fb.strengths ?? [],
+            weaknesses: fb.weaknesses ?? [],
+            risk_answers: fb.risk_answers ?? [],
+            question_feedback: fb.question_feedback ?? [],
+            optimized_answers: fb.optimized_answers ?? [],
+            practice_plan: fb.practice_plan ?? [],
+          })
+          .select()
+          .single();
+        if (fe) throw fe;
+
+        await supabase
+          .from("interview_sessions")
+          .update({
+            status: "completed",
+            ended_at: new Date().toISOString(),
+            overall_score: fb.summary?.grade ?? null,
+          })
+          .eq("id", sessionId);
+
+        send({ type: "done", report });
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "unknown action" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("interview-agent error:", e);
-    return jsonRes({ error: String(e) }, 500);
+    return new Response(
+      JSON.stringify({ error: (e as Error).message ?? "internal error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
