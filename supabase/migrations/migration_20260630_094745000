@@ -1,0 +1,9 @@
+TRUNCATE TABLE
+  feedback_reports,
+  interview_messages,
+  interview_sessions,
+  analysis_reports,
+  interview_tasks,
+  resumes,
+  profiles
+RESTART IDENTITY CASCADE;
