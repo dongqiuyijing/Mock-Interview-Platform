@@ -1,10 +1,8 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import {
-  LayoutDashboard, PlusCircle, History, Radar, CalendarCheck, LogOut,
+import { LayoutDashboard, PlusCircle, History, Radar, CalendarCheck, LogOut,
 } from "lucide-react";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import { Stepper, StepId } from "@/components/Stepper";
 import { MyResumesSection } from "@/components/MyResumesSection";
 import { OnboardingResumeDialog } from "@/components/OnboardingResumeDialog";
@@ -91,9 +89,8 @@ export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) 
             {step ? <Stepper current={step} /> : <span className="label-eyebrow">{t("app.tagline")}</span>}
           </div>
           <div className="flex items-center">
-            <LanguageSwitcher className="h-9 w-[120px] rounded-full border-border text-xs" />
             <Button variant="ghost" size="icon" onClick={signOut}
-              className="ml-2 h-9 w-9 rounded-full text-muted-foreground md:hidden">
+              className="h-9 w-9 rounded-full text-muted-foreground md:hidden">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
