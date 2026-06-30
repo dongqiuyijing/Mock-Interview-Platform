@@ -2,9 +2,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const API_KEY = Deno.env.get("INTERVIEW_AI_API_KEY")!;
-const API_BASE = Deno.env.get("INTERVIEW_AI_BASE_URL") ?? "https://api.deepseek.com/v1";
-const MODEL = Deno.env.get("INTERVIEW_AI_MODEL") ?? "deepseek-chat";
+const AI_API_TOKEN = Deno.env.get("AI_API_TOKEN_0f04393eb471")!;
+const API_BASE = "https://api.enter.pro/code/api/v1/ai";
+const MODEL = "deepseek/deepseek-v4-pro";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +24,10 @@ type Msg = { role: string; content: string };
 async function llmChat(messages: Msg[], jsonMode = false): Promise<string> {
   const res = await fetch(`${API_BASE}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${AI_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       model: MODEL,
       messages,
@@ -39,7 +42,10 @@ async function llmChat(messages: Msg[], jsonMode = false): Promise<string> {
 async function* llmStream(messages: Msg[]): AsyncGenerator<string> {
   const res = await fetch(`${API_BASE}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${AI_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ model: MODEL, messages, stream: true }),
   });
   if (!res.ok) throw new Error(`LLM error ${res.status}: ${await res.text()}`);
@@ -180,7 +186,6 @@ async function interviewNext(body: Record<string, unknown>, userId: string, sb: 
 
   if (qCount >= maxQ) return jsonRes({ done: true, capped: true });
 
-  // Existing messages
   const { data: msgs } = await sb
     .from("interview_messages").select("*")
     .eq("session_id", sessionId).order("created_at", { ascending: true });
@@ -190,7 +195,6 @@ async function interviewNext(body: Record<string, unknown>, userId: string, sb: 
     content: m.content as string,
   }));
 
-  // Save user answer
   if (answer && answer.trim()) {
     await sb.from("interview_messages").insert({
       session_id: sessionId, user_id: userId, role: "user", content: answer.trim(),
