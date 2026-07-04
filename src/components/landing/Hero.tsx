@@ -21,11 +21,8 @@ export const Hero = () => {
             <span className="label-eyebrow">AI mock interview workspace</span>
           </div>
 
-          <h1 className="display-hero mt-8 animate-fade-in">
-            Rehearse the
-            <br />
-            interview.
-            <br />
+          <h1 className="display mt-8 animate-fade-in text-4xl leading-[1.02] sm:text-5xl lg:text-6xl">
+            Rehearse the interview.{" "}
             <span className="text-foreground/35">Own the room.</span>
           </h1>
 
