@@ -1,5 +1,6 @@
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import NewTask from "./pages/NewTask";
 import Report from "./pages/Report";
@@ -20,6 +21,11 @@ export const routers = [
   },
   {
     path: "/",
+    name: "landing",
+    element: <Landing />,
+  },
+  {
+    path: "/dashboard",
     name: "dashboard",
     element: (
       <ProtectedRoute>

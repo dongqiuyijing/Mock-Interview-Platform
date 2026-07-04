@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -5,12 +6,14 @@
 
 @layer base {
   :root {
-    /* Editorial monochrome palette */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 8%;
+    /* Editorial monochrome palette (warm-tinted neutrals, no pure b/w) */
+    --background: 40 12% 98%;
+    --foreground: 30 6% 10%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 8%;
+    --card: 40 14% 99%;
+    --card-foreground: 30 6% 10%;
+
+    --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
 
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 8%;
@@ -143,7 +146,33 @@
   /* Heavy display heading */
   .display {
     @apply font-black tracking-tight;
+    font-family: var(--font-display);
     letter-spacing: -0.02em;
+  }
+  /* Fluid editorial hero heading */
+  .display-hero {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.92;
+    font-size: clamp(2.75rem, 9vw, 8rem);
+  }
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 25% 100%;
+  }
+  .marquee-track {
+    animation: marquee 32s linear infinite;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
   }
 }
 

@@ -39,7 +39,7 @@ const Auth = () => {
         trackEvent("signup_completed", { eventType: "conversion" });
         toast.success(t("auth.accountCreated"));
       }
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       toast.error((err as Error).message ?? t("auth.error"));
     } finally {

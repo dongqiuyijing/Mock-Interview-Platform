@@ -197,19 +197,19 @@ const VideoInterview = () => {
 
   // ---- load task + first question ----
   useEffect(() => {
-    if (!sessionId) { navigate("/"); return; }
+    if (!sessionId) { navigate("/dashboard"); return; }
     if (startedRef.current) return;
     startedRef.current = true;
     (async () => {
       const { data: session } = await supabase
         .from("interview_sessions").select("task_id, lang").eq("id", sessionId).maybeSingle();
-      if (!session) { navigate("/"); return; }
+      if (!session) { navigate("/dashboard"); return; }
       const lang = (session as Record<string, unknown>).lang as string ?? "en";
       sessionLangRef.current = lang;
       setSessionLang(lang);
       const { data: tk } = await supabase
         .from("interview_tasks").select("*").eq("id", session.task_id).maybeSingle();
-      if (!tk) { navigate("/"); return; }
+      if (!tk) { navigate("/dashboard"); return; }
       setTask(tk as InterviewTask);
       await askNext(null);
     })();

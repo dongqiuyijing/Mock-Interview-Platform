@@ -25,19 +25,19 @@ const Report = () => {
 
   useEffect(() => {
     if (!taskId) {
-      navigate("/");
+      navigate("/dashboard");
       return;
     }
     Promise.all([getTask(taskId), getAnalysis(taskId)])
       .then(([tk, an]) => {
         if (!tk || !an) {
-          navigate("/");
+          navigate("/dashboard");
           return;
         }
         setTask(tk as InterviewTask);
         setAnalysis(an);
       })
-      .catch(() => navigate("/"));
+      .catch(() => navigate("/dashboard"));
   }, [taskId, navigate]);
 
   if (!task || !analysis) {

@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/", key: "nav.dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/dashboard", key: "nav.dashboard", icon: LayoutDashboard, exact: true },
   { to: "/new", key: "nav.new", icon: PlusCircle },
   { to: "/history", key: "nav.history", icon: History },
   { to: "/skills", key: "nav.skills", icon: Radar },
@@ -44,7 +44,7 @@ export const AppLayout = ({ children, step, activePath, wide }: AppLayoutProps) 
       {/* Sidebar */}
       <aside className="sticky top-0 z-40 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background md:flex">
         <div className="flex h-16 items-center border-b border-border px-6">
-          <Link to="/" className="flex items-baseline gap-2">
+          <Link to="/dashboard" className="flex items-baseline gap-2">
             <span className="display text-lg">{t("app.name")}</span>
           </Link>
         </div>

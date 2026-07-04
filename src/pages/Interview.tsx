@@ -53,7 +53,7 @@ const Interview = () => {
   // Load task + start first question.
   useEffect(() => {
     if (!sessionId) {
-      navigate("/");
+      navigate("/dashboard");
       return;
     }
     if (startedRef.current) return;
@@ -66,7 +66,7 @@ const Interview = () => {
         .eq("id", sessionId)
         .maybeSingle();
       if (!session) {
-        navigate("/");
+        navigate("/dashboard");
         return;
       }
       const lang = (session as Record<string, unknown>).lang as string ?? "en";
@@ -77,7 +77,7 @@ const Interview = () => {
         .eq("id", session.task_id)
         .maybeSingle();
       if (!tk) {
-        navigate("/");
+        navigate("/dashboard");
         return;
       }
       setTask(tk as InterviewTask);

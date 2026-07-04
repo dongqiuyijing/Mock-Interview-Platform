@@ -35,13 +35,13 @@ const Feedback = () => {
 
   useEffect(() => {
     if (!sessionId) {
-      navigate("/");
+      navigate("/dashboard");
       return;
     }
     (async () => {
       const f = await getFeedback(sessionId);
       if (!f) {
-        navigate("/");
+        navigate("/dashboard");
         return;
       }
       setFb(f);
@@ -60,7 +60,7 @@ const Feedback = () => {
         if (tk) setJobTitle(tk.job_title);
       }
       setLoading(false);
-    })().catch(() => navigate("/"));
+    })().catch(() => navigate("/dashboard"));
   }, [sessionId, navigate]);
 
   if (loading || !fb) {
