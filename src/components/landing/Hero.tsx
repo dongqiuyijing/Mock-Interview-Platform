@@ -10,9 +10,6 @@ export const Hero = () => {
 
   return (
     <section className="relative overflow-hidden">
-      {/* faint editorial grid lines */}
-      <div className="pointer-events-none absolute inset-0 grid-lines opacity-[0.55]" />
-
       <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 pb-20 pt-20 sm:pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
         {/* Left: copy */}
         <div>
